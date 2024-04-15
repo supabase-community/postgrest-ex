@@ -1,4 +1,4 @@
-defmodule PostgREST.QueryBuilder do
+defmodule Supabase.PostgREST.QueryBuilder do
   @moduledoc false
 
   defstruct [:table, :method, :body, :params, :headers, :client]

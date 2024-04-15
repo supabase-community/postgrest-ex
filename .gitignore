@@ -30,3 +30,6 @@ result
 
 # Ignore credentials
 .env
+
+.elixir-tools/
+.lexical/

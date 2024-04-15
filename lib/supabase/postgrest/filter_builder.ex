@@ -1,5 +1,5 @@
-defmodule PostgREST.FilterBuilder do
-  alias PostgREST.QueryBuilder
+defmodule Supabase.PostgREST.FilterBuilder do
+  alias Supabase.PostgREST.QueryBuilder
 
   defstruct [:method, :body, :table, :headers, :params, :client]
 
