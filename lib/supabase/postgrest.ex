@@ -942,4 +942,92 @@ defmodule Supabase.PostgREST do
   defp success_resp?(status) do
     Kernel.in(status, 200..399)
   end
+
+  defmacrop wrap_postgrest_functions do
+    quote unquote: false, bind_quoted: [module: __MODULE__] do
+      for {fun, arity} <- module.__info__(:functions) do
+        cond do
+          fun == :from ->
+            quote do
+              @doc """
+              Check `Supabase.PostgREST.#{unquote(fun)}/#{unquote(arity)}`
+              """
+              def unquote(fun)(schema) do
+                apply(unquote(module), unquote(fun), [@client, schema])
+              end
+            end
+
+          arity == 1 ->
+            quote do
+              @doc """
+              Check `Supabase.PostgREST.#{unquote(fun)}/#{unquote(arity)}`
+              """
+              def unquote(fun)(data) do
+                apply(unquote(module), unquote(fun), [data])
+              end
+            end
+
+          true ->
+            args = for idx <- 1..arity, do: Macro.var(:"arg#{idx}", module)
+
+            quote do
+              @doc """
+              Check `Supabase.PostgREST.#{unquote(fun)}/#{unquote(arity)}`
+              """
+              def unquote(fun)(unquote_splicing(args)) do
+                args = [unquote_splicing(args)]
+                apply(unquote(module), unquote(fun), args)
+              end
+            end
+        end
+      end
+    end
+  end
+
+  defmacro __using__([{:client, client} | opts]) do
+    config = Macro.escape(Keyword.get(opts, :config, %{}))
+
+    quote location: :keep do
+      @client unquote(client)
+
+      def child_spec(opts) do
+        %{
+          id: __MODULE__,
+          start: {__MODULE__, :start_link, [opts]},
+          type: :supervisor
+        }
+      end
+
+      def start_link(opts \\ []) do
+        manage_clients? = Application.get_env(:supabase_potion, :manage_clients, true)
+
+        if manage_clients? do
+          Supabase.init_client(unquote(client), unquote(config))
+        else
+          base_url =
+            Application.get_env(:supabase_potion, :supabase_base_url) ||
+              raise Supabase.MissingSupabaseConfig, :url
+
+          api_key =
+            Application.get_env(:supabase_potion, :supabase_api_key) ||
+              raise Supabase.MissingSupabaseConfig, :key
+
+          config =
+            unquote(config)
+            |> Map.put(:conn, %{base_url: base_url, api_key: api_key})
+            |> Map.put(:name, unquote(client))
+
+          opts = [name: unquote(client), client_info: config]
+          Supabase.Client.start_link(opts)
+        end
+        |> then(fn
+          {:ok, pid} -> {:ok, pid}
+          {:error, {:already_started, pid}} -> {:ok, pid}
+          err -> err
+        end)
+      end
+
+      unquote(wrap_postgrest_functions())
+    end
+  end
 end
