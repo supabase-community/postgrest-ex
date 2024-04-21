@@ -1,6 +1,8 @@
 {
+  description = "Supabase PostgREST SDK for Elixir";
+
   inputs = {
-    nixpkgs.url = "flake:nixpkgs";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
     flake-parts.url = "github:hercules-ci/flake-parts";
     systems.url = "github:nix-systems/default";
   };
@@ -12,12 +14,24 @@
   } @ inputs:
     flake-parts.lib.mkFlake {inherit inputs;} {
       systems = import systems;
-      perSystem = {pkgs, ...}: {
+      perSystem = {
+        pkgs,
+        system,
+        ...
+      }: let
+        inherit (pkgs.beam.interpreters) erlangR26;
+        inherit (pkgs.beam) packagesWith;
+        beam = packagesWith erlangR26;
+      in {
+        _module.args.pkgs = import inputs.nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+        };
         devShells.default = with pkgs;
           mkShell {
             name = "postgrest-ex";
             packages = with pkgs;
-              [elixir_1_16]
+              [beam.elixir_1_16]
               ++ lib.optional stdenv.isLinux [inotify-tools]
               ++ lib.optional stdenv.isDarwin [
                 darwin.apple_sdk.frameworks.CoreServices
