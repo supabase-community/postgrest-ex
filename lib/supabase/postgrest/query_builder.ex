@@ -3,6 +3,15 @@ defmodule Supabase.PostgREST.QueryBuilder do
 
   defstruct [:table, :method, :body, :params, :headers, :client]
 
+  @type t :: %__MODULE__{
+          table: String.t(),
+          method: :get | :post | :put | :patch | :delete,
+          params: map,
+          headers: map,
+          body: binary,
+          client: Supabase.Client.t()
+        }
+
   def new(table, client) do
     %__MODULE__{
       table: table,

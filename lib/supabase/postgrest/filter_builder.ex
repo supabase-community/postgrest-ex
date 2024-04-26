@@ -3,6 +3,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
 
   defstruct [:method, :body, :table, :headers, :params, :client]
 
+  @type t :: %__MODULE__{
+          table: String.t(),
+          method: :get | :post | :put | :patch | :delete,
+          params: map,
+          headers: map,
+          body: binary,
+          client: Supabase.Client.t()
+        }
+
   def new, do: %__MODULE__{}
 
   def from_query_builder(%QueryBuilder{} = q) do

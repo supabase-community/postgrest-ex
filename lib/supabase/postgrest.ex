@@ -17,6 +17,8 @@ defmodule Supabase.PostgREST do
   alias Supabase.PostgREST.FilterBuilder
   alias Supabase.PostgREST.QueryBuilder
 
+  @behaviour Supabase.PostgRESTBehaviour
+
   @doc """
   Initializes a `QueryBuilder` for a specified table and client.
 
@@ -31,6 +33,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase documentation on initializing queries: https://supabase.com/docs/reference/javascript/from
   """
+  @impl true
   def from(client, table) when is_client(client) do
     QueryBuilder.new(table, client)
   end
@@ -50,6 +53,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase select queries: https://supabase.com/docs/reference/javascript/select
   """
+  @impl true
   def select(query_builder, columns, opts \\ [])
 
   def select(%QueryBuilder{} = q, "*", opts) do
@@ -95,6 +99,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase documentation on inserts: https://supabase.com/docs/reference/javascript/insert
   """
+  @impl true
   def insert(%QueryBuilder{} = q, data, opts \\ []) do
     on_conflict = Keyword.get(opts, :on_conflict)
     upsert = if on_conflict, do: "resolution=merge-duplicates"
@@ -130,6 +135,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase documentation on upserts: https://supabase.com/docs/reference/javascript/upsert
   """
+  @impl true
   def upsert(%QueryBuilder{} = q, data, opts \\ []) do
     on_conflict = Keyword.get(opts, :on_conflict)
     returning = Keyword.get(opts, :returning, :representation)
@@ -165,6 +171,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase documentation on deletes: https://supabase.com/docs/reference/javascript/delete
   """
+  @impl true
   def delete(%QueryBuilder{} = q, opts \\ []) do
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
@@ -190,6 +197,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase documentation on updates: https://supabase.com/docs/reference/javascript/update
   """
+  @impl true
   def update(%QueryBuilder{} = q, data, opts \\ []) do
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
@@ -208,6 +216,7 @@ defmodule Supabase.PostgREST do
     end
   end
 
+  @impl true
   def filter(%FilterBuilder{} = f, column, op, value) do
     FilterBuilder.add_param(f, column, "#{op}.#{value}")
   end
@@ -227,6 +236,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase logical operations: https://supabase.com/docs/reference/javascript/using-filters#logical-operators
   """
+  @impl true
   def unquote(:and)(%FilterBuilder{} = f, columns, opts \\ []) do
     columns = Enum.join(columns, ",")
 
@@ -252,6 +262,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Further details on logical operations in Supabase: https://supabase.com/docs/reference/javascript/using-filters#logical-operators
   """
+  @impl true
   def unquote(:or)(%FilterBuilder{} = f, columns, opts \\ []) do
     columns = Enum.join(columns, ",")
 
@@ -277,6 +288,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase negation filters: https://supabase.com/docs/reference/javascript/using-filters#negation
   """
+  @impl true
   def unquote(:not)(%FilterBuilder{} = f, column, op, value) do
     FilterBuilder.add_param(f, column, "not.#{op}.#{value}")
   end
@@ -296,6 +308,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase ordering results: https://supabase.com/docs/reference/javascript/using-filters#order
   """
+  @impl true
   def match(%FilterBuilder{} = f, %{} = query) do
     for {k, v} <- Map.to_list(query), reduce: f do
       f -> FilterBuilder.add_param(f, k, "eq.#{v}")
@@ -316,6 +329,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase equality filters: https://supabase.com/docs/reference/javascript/using-filters#equality
   """
+  @impl true
   def eq(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "eq.#{value}")
   end
@@ -334,6 +348,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase not equal filter: https://supabase.com/docs/reference/javascript/using-filters#not-equal
   """
+  @impl true
   def neq(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "neq.#{value}")
   end
@@ -352,6 +367,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase greater than filter: https://supabase.com/docs/reference/javascript/using-filters#greater-than
   """
+  @impl true
   def gt(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "gt.#{value}")
   end
@@ -370,6 +386,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase greater than or equal filter: https://supabase.com/docs/reference/javascript/using-filters#greater-than-or-equal
   """
+  @impl true
   def gte(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "gte.#{value}")
   end
@@ -388,6 +405,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase less than filter: https://supabase.com/docs/reference/javascript/using-filters#less-than
   """
+  @impl true
   def lt(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "lt.#{value}")
   end
@@ -406,6 +424,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase less than or equal filter: https://supabase.com/docs/reference/javascript/using-filters#less-than-or-equal
   """
+  @impl true
   def lte(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "lte.#{value}")
   end
@@ -424,6 +443,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase like filter: https://supabase.com/docs/reference/javascript/using-filters#like
   """
+  @impl true
   def like(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "like.#{value}")
   end
@@ -442,6 +462,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase ilike filter: https://supabase.com/docs/reference/javascript/using-filters#ilike
   """
+  @impl true
   def ilike(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "ilike.#{value}")
   end
@@ -460,6 +481,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase is filter: https://supabase.com/docs/reference/javascript/using-filters#is
   """
+  @impl true
   def is(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "is.#{value}")
   end
@@ -478,6 +500,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase "IN" filters: https://supabase.com/docs/reference/javascript/using-filters#in
   """
+  @impl true
   def unquote(:in)(%FilterBuilder{} = f, column, values)
       when is_list(values) do
     FilterBuilder.add_param(f, column, "in.(#{Enum.join(values, ",")})")
@@ -497,6 +520,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase contains filter: https://supabase.com/docs/reference/javascript/using-filters#contains
   """
+  @impl true
   def contains(%FilterBuilder{} = f, column, values)
       when is_list(values) do
     FilterBuilder.add_param(f, column, "cs.(#{Enum.join(values, ",")})")
@@ -516,6 +540,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase contained by filter: https://supabase.com/docs/reference/javascript/using-filters#contained-by
   """
+  @impl true
   def contained_by(%FilterBuilder{} = f, column, values)
       when is_list(values) do
     FilterBuilder.add_param(f, column, "cd.(#{Enum.join(values, ",")})")
@@ -535,6 +560,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase JSON contains filter: https://supabase.com/docs/reference/javascript/using-filters#json-contains
   """
+  @impl true
   def contains_object(%FilterBuilder{} = f, column, %{} = data) do
     case Jason.encode(data) do
       {:ok, data} -> FilterBuilder.add_param(f, column, "cs.#{data}")
@@ -556,6 +582,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase JSON contained by filter: https://supabase.com/docs/reference/javascript/using-filters#json-contained-by
   """
+  @impl true
   def contained_by_object(%FilterBuilder{} = f, column, %{} = data) do
     case Jason.encode(data) do
       {:ok, data} -> FilterBuilder.add_param(f, column, "cd.#{data}")
@@ -577,6 +604,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase range filters: https://supabase.com/docs/reference/javascript/using-filters#range
   """
+  @impl true
   def range_lt(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "sl.#{value}")
   end
@@ -595,6 +623,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - More on range filters at Supabase: https://supabase.com/docs/reference/javascript/using-filters#range
   """
+  @impl true
   def range_gt(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "sr.#{value}")
   end
@@ -613,6 +642,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase documentation on range filters: https://supabase.com/docs/reference/javascript/using-filters#range
   """
+  @impl true
   def range_gte(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "nxl.#{value}")
   end
@@ -631,6 +661,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase guide on using range filters: https://supabase.com/docs/reference/javascript/using-filters#range
   """
+  @impl true
   def range_lte(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "nxr.#{value}")
   end
@@ -649,6 +680,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase adjacent range filters: https://supabase.com/docs/reference/javascript/using-filters#adjacent
   """
+  @impl true
   def range_adjacent(%FilterBuilder{} = f, column, value) do
     FilterBuilder.add_param(f, column, "adj.#{value}")
   end
@@ -667,6 +699,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase overlaps filter: https://supabase.com/docs/reference/javascript/using-filters#overlaps
   """
+  @impl true
   def overlaps(%FilterBuilder{} = f, column, values)
       when is_list(values) do
     values
@@ -690,6 +723,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase full-text search capabilities: https://supabase.com/docs/reference/javascript/using-filters#full-text-search
   """
+  @impl true
   def text_search(%FilterBuilder{} = f, column, query, opts \\ []) do
     type = search_type_to_code(Keyword.get(opts, :type))
     config = if config = Keyword.get(opts, :config), do: "(#{config})", else: ""
@@ -716,6 +750,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase query limits: https://supabase.com/docs/reference/javascript/using-filters#limit
   """
+  @impl true
   def limit(%FilterBuilder{} = f, count, opts \\ []) do
     if foreign = Keyword.get(opts, :foreign_table) do
       FilterBuilder.add_param(f, "#{foreign}.limit", to_string(count))
@@ -739,6 +774,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase ordering results: https://supabase.com/docs/reference/javascript/using-filters#order
   """
+  @impl true
   def order(%FilterBuilder{} = f, column, opts \\ []) do
     order = if opts[:asc], do: "asc", else: "desc"
     nulls_first = if opts[:null_first], do: "nullsfirst", else: "nullslast"
@@ -766,6 +802,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase range queries: https://supabase.com/docs/reference/javascript/using-filters#range
   """
+  @impl true
   def range(%FilterBuilder{} = f, from, to, opts \\ []) do
     if foreign = Keyword.get(opts, :foreign_table) do
       f
@@ -791,6 +828,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase single row mode: https://supabase.com/docs/reference/javascript/using-filters#single-row
   """
+  @impl true
   def single(%FilterBuilder{} = f) do
     FilterBuilder.add_header(f, "accept", "application/vnd.pgrst,object+json")
   end
@@ -807,6 +845,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase query execution: https://supabase.com/docs/reference/javascript/performing-queries
   """
+  @impl true
   def execute(%FilterBuilder{} = f) do
     execute(f.client, f.method, f.body, f.table, f.headers, f.params)
   end
@@ -827,6 +866,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase query execution and response handling: https://supabase.com/docs/reference/javascript/performing-queries
   """
+  @impl true
   def execute_string(%FilterBuilder{} = f) do
     with {:ok, body} <- execute(f.client, f.method, f.body, f.table, f.headers, f.params) do
       Jason.encode(body)
@@ -852,6 +892,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase query execution and schema casting: https://supabase.com/docs/reference/javascript/performing-queries
   """
+  @impl true
   def execute_to(%FilterBuilder{} = f, schema) when is_atom(schema) do
     with {:ok, body} <- execute(f.client, f.method, f.body, f.table, f.headers, f.params) do
       if is_list(body) do
@@ -887,6 +928,7 @@ defmodule Supabase.PostgREST do
   ## See also
   - Supabase query execution: https://supabase.com/docs/reference/javascript/performing-queries
   """
+  @impl true
   def execute_to_finch_request(%mod{} = q) when Kernel.in(mod, [FilterBuilder, QueryBuilder]) do
     with {:ok, %Supabase.Client{} = client} = Supabase.Client.retrieve_client(q.client) do
       base_url = Path.join([client.conn.base_url, @api_path, q.table])
