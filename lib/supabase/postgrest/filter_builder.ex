@@ -1,4 +1,6 @@
 defmodule Supabase.PostgREST.FilterBuilder do
+  @moduledoc false
+
   alias Supabase.PostgREST.QueryBuilder
 
   defstruct [:method, :body, :table, :headers, :params, :client]

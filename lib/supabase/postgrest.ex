@@ -11,8 +11,7 @@ defmodule Supabase.PostgREST do
 
   import Kernel, except: [not: 1, and: 2, or: 2, in: 2]
 
-  import Supabase.Client, only: [is_client: 1]
-
+  alias Supabase.Client
   alias Supabase.PostgREST.Error
   alias Supabase.PostgREST.FilterBuilder
   alias Supabase.PostgREST.QueryBuilder
@@ -34,7 +33,7 @@ defmodule Supabase.PostgREST do
   - Supabase documentation on initializing queries: https://supabase.com/docs/reference/javascript/from
   """
   @impl true
-  def from(client, table) when is_client(client) do
+  def from(%Client{} = client, table) do
     QueryBuilder.new(table, client)
   end
 
@@ -102,10 +101,12 @@ defmodule Supabase.PostgREST do
   @impl true
   def insert(%QueryBuilder{} = q, data, opts \\ []) do
     on_conflict = Keyword.get(opts, :on_conflict)
+    on_conflict = if on_conflict, do: "on_conflict=#{on_conflict}"
     upsert = if on_conflict, do: "resolution=merge-duplicates"
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
-    prefer = Enum.join([upsert, "return=#{returning}", "count=#{count}"], ",")
+    prefer = ["return=#{returning}", "count=#{count}", on_conflict, upsert]
+    prefer = Enum.join(Enum.reject(prefer, &is_nil/1), ",")
 
     case Jason.encode(data) do
       {:ok, body} ->
@@ -703,8 +704,7 @@ defmodule Supabase.PostgREST do
   def overlaps(%FilterBuilder{} = f, column, values)
       when is_list(values) do
     values
-    |> Enum.map(&"%##{&1}")
-    |> Enum.join(",")
+    |> Enum.map_join(",", &"%##{&1}")
     |> then(&FilterBuilder.add_param(f, column, "{#{&1}}"))
   end
 
@@ -830,7 +830,7 @@ defmodule Supabase.PostgREST do
   """
   @impl true
   def single(%FilterBuilder{} = f) do
-    FilterBuilder.add_header(f, "accept", "application/vnd.pgrst,object+json")
+    FilterBuilder.add_header(f, "accept", "application/vnd.pgrst.object+json")
   end
 
   @doc """
@@ -896,9 +896,9 @@ defmodule Supabase.PostgREST do
   def execute_to(%FilterBuilder{} = f, schema) when is_atom(schema) do
     with {:ok, body} <- execute(f.client, f.method, f.body, f.table, f.headers, f.params) do
       if is_list(body) do
-        Enum.map(body, &struct(schema, &1))
+        {:ok, Enum.map(body, &struct(schema, &1))}
       else
-        struct(schema, body)
+        {:ok, struct(schema, body)}
       end
     end
   end
@@ -906,9 +906,9 @@ defmodule Supabase.PostgREST do
   def execute_to(%QueryBuilder{} = q, schema) when is_atom(schema) do
     with {:ok, body} <- execute(q.client, q.method, q.body, q.table, q.headers, q.params) do
       if is_list(body) do
-        Enum.map(body, &struct(schema, &1))
+        {:ok, Enum.map(body, &struct(schema, &1))}
       else
-        struct(schema, body)
+        {:ok, struct(schema, body)}
       end
     end
   end
@@ -929,35 +929,35 @@ defmodule Supabase.PostgREST do
   - Supabase query execution: https://supabase.com/docs/reference/javascript/performing-queries
   """
   @impl true
-  def execute_to_finch_request(%mod{} = q) when Kernel.in(mod, [FilterBuilder, QueryBuilder]) do
-    with {:ok, %Supabase.Client{} = client} = Supabase.Client.retrieve_client(q.client) do
-      base_url = Path.join([client.conn.base_url, @api_path, q.table])
-      accept_profile = {"accept-profile", client.db.schema}
-      content_profile = {"content-profile", client.db.schema}
-      additional_headers = Map.to_list(q.headers) ++ [accept_profile, content_profile]
-      headers = Supabase.Fetcher.apply_client_headers(client, nil, additional_headers)
-      query = URI.encode_query(q.params)
-      url = URI.new!(base_url) |> URI.append_query(query)
+  def execute_to_finch_request(%mod{client: client} = q)
+      when Kernel.in(mod, [FilterBuilder, QueryBuilder]) do
+    base_url = Path.join([client.conn.base_url, @api_path, q.table])
+    headers = apply_headers(client, q.headers)
+    query = URI.encode_query(q.params)
+    url = URI.new!(base_url) |> URI.append_query(query)
 
-      Supabase.Fetcher.new_connection(q.method, url, q.body, headers)
-    end
+    Supabase.Fetcher.new_connection(q.method, url, q.body, headers)
   end
 
   defp execute(client, method, body, table, headers, params) do
-    with {:ok, %Supabase.Client{} = client} = Supabase.Client.retrieve_client(client) do
-      base_url = Path.join([client.conn.base_url, @api_path, table])
-      accept_profile = {"accept-profile", client.db.schema}
-      content_profile = {"content-profile", client.db.schema}
-      additional_headers = Map.to_list(headers) ++ [accept_profile, content_profile]
-      headers = Supabase.Fetcher.apply_client_headers(client, nil, additional_headers)
-      query = URI.encode_query(params)
-      url = URI.new!(base_url) |> URI.append_query(query)
-      request = request_fun_from_method(method)
+    base_url = Path.join([client.conn.base_url, @api_path, table])
+    headers = apply_headers(client, headers)
+    query = URI.encode_query(params)
+    url = URI.new!(base_url) |> URI.append_query(query)
+    request = request_fun_from_method(method)
 
-      url
-      |> request.(body, headers)
-      |> parse_response()
-    end
+    url
+    |> request.(body, headers)
+    |> parse_response()
+  end
+
+  defp apply_headers(client, headers) do
+    accept_profile = {"accept-profile", client.db.schema}
+    content_profile = {"content-profile", client.db.schema}
+    content_type = {"content-type", "application/json"}
+    additional_headers = Map.to_list(headers) ++ [accept_profile, content_profile, content_type]
+
+    Supabase.Fetcher.apply_client_headers(client, nil, additional_headers)
   end
 
   defp request_fun_from_method(:get), do: &Supabase.Fetcher.get/3
@@ -983,93 +983,5 @@ defmodule Supabase.PostgREST do
 
   defp success_resp?(status) do
     Kernel.in(status, 200..399)
-  end
-
-  defmacrop wrap_postgrest_functions do
-    quote unquote: false, bind_quoted: [module: __MODULE__] do
-      for {fun, arity} <- module.__info__(:functions) do
-        cond do
-          fun == :from ->
-            quote do
-              @doc """
-              Check `Supabase.PostgREST.#{unquote(fun)}/#{unquote(arity)}`
-              """
-              def unquote(fun)(schema) do
-                apply(unquote(module), unquote(fun), [@client, schema])
-              end
-            end
-
-          arity == 1 ->
-            quote do
-              @doc """
-              Check `Supabase.PostgREST.#{unquote(fun)}/#{unquote(arity)}`
-              """
-              def unquote(fun)(data) do
-                apply(unquote(module), unquote(fun), [data])
-              end
-            end
-
-          true ->
-            args = for idx <- 1..arity, do: Macro.var(:"arg#{idx}", module)
-
-            quote do
-              @doc """
-              Check `Supabase.PostgREST.#{unquote(fun)}/#{unquote(arity)}`
-              """
-              def unquote(fun)(unquote_splicing(args)) do
-                args = [unquote_splicing(args)]
-                apply(unquote(module), unquote(fun), args)
-              end
-            end
-        end
-      end
-    end
-  end
-
-  defmacro __using__([{:client, client} | opts]) do
-    config = Macro.escape(Keyword.get(opts, :config, %{}))
-
-    quote location: :keep do
-      @client unquote(client)
-
-      def child_spec(opts) do
-        %{
-          id: __MODULE__,
-          start: {__MODULE__, :start_link, [opts]},
-          type: :supervisor
-        }
-      end
-
-      def start_link(opts \\ []) do
-        manage_clients? = Application.get_env(:supabase_potion, :manage_clients, true)
-
-        if manage_clients? do
-          Supabase.init_client(unquote(client), unquote(config))
-        else
-          base_url =
-            Application.get_env(:supabase_potion, :supabase_base_url) ||
-              raise Supabase.MissingSupabaseConfig, :url
-
-          api_key =
-            Application.get_env(:supabase_potion, :supabase_api_key) ||
-              raise Supabase.MissingSupabaseConfig, :key
-
-          config =
-            unquote(config)
-            |> Map.put(:conn, %{base_url: base_url, api_key: api_key})
-            |> Map.put(:name, unquote(client))
-
-          opts = [name: unquote(client), client_info: config]
-          Supabase.Client.start_link(opts)
-        end
-        |> then(fn
-          {:ok, pid} -> {:ok, pid}
-          {:error, {:already_started, pid}} -> {:ok, pid}
-          err -> err
-        end)
-      end
-
-      unquote(wrap_postgrest_functions())
-    end
   end
 end

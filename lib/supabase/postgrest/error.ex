@@ -1,4 +1,6 @@
 defmodule Supabase.PostgREST.Error do
+  @moduledoc false
+
   @derive Jason.Encoder
   defstruct [:hint, :details, :code, :message]
 

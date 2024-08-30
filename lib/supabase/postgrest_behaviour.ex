@@ -3,6 +3,7 @@ defmodule Supabase.PostgRESTBehaviour do
 
   import Kernel, except: [not: 1, and: 2, or: 2, in: 2]
 
+  alias Supabase.Client
   alias Supabase.PostgREST.Error
   alias Supabase.PostgREST.FilterBuilder
   alias Supabase.PostgREST.QueryBuilder
@@ -85,5 +86,5 @@ defmodule Supabase.PostgRESTBehaviour do
   @callback execute_to(QueryBuilder.t() | FilterBuilder.t(), atom) ::
               {:ok, term} | {:error, Error.t() | atom}
   @callback execute_to_finch_request(QueryBuilder.t() | FilterBuilder.t()) ::
-              {:ok, Finch.Request.t()} | {:error, Error.t() | atom}
+              Finch.Request.t()
 end

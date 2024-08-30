@@ -1,12 +1,12 @@
 defmodule PostgREST.MixProject do
   use Mix.Project
 
-  @source_url "https://github.com/zoedsoupe/supabase-postgrest"
+  @source_url "https://github.com/zoedsoupe/postgrest-ex"
 
   def project do
     [
       app: :supabase_postgrest,
-      version: "0.1.2",
+      version: "0.1.3",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -26,7 +26,12 @@ defmodule PostgREST.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    [{:supabase_potion, "~> 0.3.1"}, {:ex_doc, ">= 0.0.0", runtime: false}]
+    [
+      {:supabase_potion, "~> 0.4"},
+      {:ex_doc, ">= 0.0.0", runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.3", only: [:dev], runtime: false}
+    ]
   end
 
   defp package do

@@ -1,14 +1,15 @@
 defmodule Supabase.PostgRESTTest do
   use ExUnit.Case
+
   alias Supabase.PostgREST
-  alias Supabase.PostgREST.QueryBuilder
   alias Supabase.PostgREST.FilterBuilder
+  alias Supabase.PostgREST.QueryBuilder
 
   # Mock the Supabase.Client for the test environment
   setup do
     client = %Supabase.Client{
       conn: %{api_key: "test_key", base_url: "http://example.com"},
-      name: :test
+      db: %{schema: "public"}
     }
 
     {:ok, client: client}
@@ -17,10 +18,8 @@ defmodule Supabase.PostgRESTTest do
   describe "from/2" do
     test "initializes a QueryBuilder correctly", %{client: client} do
       table = "users"
-      client_name = client.name
 
-      assert %QueryBuilder{table: ^table, client: ^client_name} =
-               PostgREST.from(client.name, table)
+      assert %QueryBuilder{table: ^table} = PostgREST.from(client, table)
     end
   end
 
@@ -56,7 +55,9 @@ defmodule Supabase.PostgRESTTest do
       result = PostgREST.insert(query_builder, data, opts)
       assert %FilterBuilder{} = result
       assert result.method == :post
-      assert result.headers["Prefer"] == "resolution=merge-duplicates,return=minimal,count=exact"
+
+      assert result.headers["Prefer"] ==
+               "return=minimal,count=exact,on_conflict=name,resolution=merge-duplicates"
     end
   end
 
@@ -103,7 +104,6 @@ defmodule Supabase.PostgRESTTest do
   describe "filter functions" do
     setup do
       client = %Supabase.Client{
-        name: :test,
         conn: %{api_key: "test_key", base_url: "http://example.com"}
       }
 
