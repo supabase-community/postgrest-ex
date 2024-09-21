@@ -1,5 +1,7 @@
 # Supabase PostgREST
 
+[PostgREST](https://supabase.com/docs/guides/database/overview) implementation for the [Supabase Potion](https://hexdocs.pm/supabase_potion) SDK in Elixir.
+
 The `Supabase.PostgREST` module provides a suite of functions to interact with a Supabase PostgREST API using a fluent interface. This allows you to construct and execute complex queries in the context of a Supabase database application, facilitating a more functional approach to managing database operations in Elixir.
 
 Please, refers to the [official Supabase PostgREST](https://supabase.com/docs/guides/api) documentation to have the context on how to apply query and filters on your data, and also configure your project to expose the PostgREST API.
@@ -11,7 +13,7 @@ Add the following dependencies to your `mix.exs` file:
 ```elixir
 def deps do
   [
-    {:supabase_potion, "~> 0.4"},
+    {:supabase_potion, "~> 0.5"},
     {:supabase_postgrest, "~> 0.1"}
   ]
 end
@@ -25,13 +27,7 @@ Then, run `mix deps.get` to fetch the dependencies.
 
 Before using the `Supabase.PostgREST` module, you need to initialize a Supabase client. This client handles the authentication and configuration needed to interact with the Supabase services.
 
-You can initialize the client as follows:
-
-```elixir
-iex> {:ok, client} = Supabase.init_client(%{conn: %{base_url: "<supa-url>", api_key: "<supa-key>"}})
-```
-
-> Refer to the [base SDK documentation](https://hexdocs.pm/supabase_potion/0.4.1/readme.html#starting-a-client) for more details about client initialization
+You can initialize the client as can be found on the [Supabase Potion documentation](https://hexdocs.pm/supabase_potion/readme.html#usage)
 
 This client struct is passed to the various `Supabase.PostgREST` functions to perform operations on your Supabase database.
 
