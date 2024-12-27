@@ -17,6 +17,11 @@ defmodule Supabase.PostgRESTBehaviour do
           foreign_table: String.t() | nil
         ]
 
+  @type media_type ::
+          :json | :csv | :openapi | :geojson | :pgrst_plan | :pgrst_object | :pgrst_array
+
+  @callback with_custom_media_type(builder, media_type) :: builder
+            when builder: QueryBuilder.t() | FilterBuilder.t()
   @callback from(Client.t(), schema :: String.t()) :: QueryBuilder.t()
   @callback select(QueryBuilder.t(), list(String.t()) | String.t()) :: FilterBuilder.t()
   @callback select(QueryBuilder.t(), list(String.t()) | String.t(), options) :: FilterBuilder.t()

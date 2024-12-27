@@ -32,7 +32,7 @@ defmodule Supabase.PostgRESTTest do
       result = PostgREST.select(query_builder, columns, opts)
       assert %FilterBuilder{} = result
       assert result.params["select"] == "id,name,email"
-      assert result.headers["Prefer"] == "count=exact"
+      assert result.headers["prefer"] == "count=exact"
     end
 
     test "builds a select query with all columns using '*'", %{client: client} do
@@ -42,7 +42,7 @@ defmodule Supabase.PostgRESTTest do
       result = PostgREST.select(query_builder, "*", opts)
       assert %FilterBuilder{} = result
       assert result.params["select"] == "*"
-      assert result.headers["Prefer"] == "count=exact"
+      assert result.headers["prefer"] == "count=exact"
     end
   end
 
@@ -56,7 +56,7 @@ defmodule Supabase.PostgRESTTest do
       assert %FilterBuilder{} = result
       assert result.method == :post
 
-      assert result.headers["Prefer"] ==
+      assert result.headers["prefer"] ==
                "return=minimal,count=exact,on_conflict=name,resolution=merge-duplicates"
     end
   end
@@ -70,7 +70,7 @@ defmodule Supabase.PostgRESTTest do
       result = PostgREST.update(query_builder, data, opts)
       assert %FilterBuilder{} = result
       assert result.method == :patch
-      assert result.headers["Prefer"] == "return=representation,count=exact"
+      assert result.headers["prefer"] == "return=representation,count=exact"
     end
   end
 
@@ -82,7 +82,7 @@ defmodule Supabase.PostgRESTTest do
       result = PostgREST.delete(query_builder, opts)
       assert %FilterBuilder{} = result
       assert result.method == :delete
-      assert result.headers["Prefer"] == "return=representation,count=exact"
+      assert result.headers["prefer"] == "return=representation,count=exact"
     end
   end
 
@@ -96,7 +96,7 @@ defmodule Supabase.PostgRESTTest do
       assert %FilterBuilder{} = result
       assert result.method == :post
 
-      assert result.headers["Prefer"] ==
+      assert result.headers["prefer"] ==
                "resolution=merge-duplicates,return=representation,count=exact"
     end
   end
