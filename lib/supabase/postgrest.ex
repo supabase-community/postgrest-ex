@@ -18,6 +18,17 @@ defmodule Supabase.PostgREST do
 
   @behaviour Supabase.PostgRESTBehaviour
 
+  @accept_headers %{
+    default: "*/*",
+    csv: "text/csv",
+    json: "application/json",
+    openapi: "application/openapi+json",
+    postgis: "application/geo+json",
+    pgrst_plan: "application/vnd.pgrst.plan+json",
+    pgrst_object: "application/vnd.pgrst.object+json",
+    pgrst_array: "application/vnd.pgrst.array+json"
+  }
+
   @doc """
   Initializes a `QueryBuilder` for a specified table and client.
 
@@ -34,12 +45,44 @@ defmodule Supabase.PostgREST do
   """
   @impl true
   def from(%Client{} = client, table) do
-    QueryBuilder.new(table, client)
+    table
+    |> QueryBuilder.new(client)
+    |> with_custom_media_type(:default)
+  end
+
+  @doc """
+  Overrides the default media type `accept` header, which can control
+  the represation of the PostgREST response
+
+  ## Examples
+      iex> q = PostgREST.from(client, "users")
+      iex> q = PostgREST.with_custom_media_type(q, :csv)
+      iex> PostgREST.execute(q)
+      {:ok, "id,name\n1,john\n2,maria"}
+
+  ## See also
+  - [PostgREST resource represation docs](https://docs.postgrest.org/en/v12/references/api/resource_representation.html)
+  """
+  @impl true
+  def with_custom_media_type(%QueryBuilder{} = q, media_type)
+      when is_atom(media_type) do
+    header = @accept_headers[media_type] || @accept_headers[:default]
+    QueryBuilder.add_header(q, "accept", header)
+  end
+
+  def with_custom_media_type(%FilterBuilder{} = f, media_type)
+      when is_atom(media_type) do
+    header = @accept_headers[media_type] || @accept_headers[:default]
+    FilterBuilder.add_header(f, "accept", header)
   end
 
   @doc """
   Selects records from a table. You can specify specific columns or use '*' for all columns.
   Options such as counting results and specifying return types can be configured.
+
+  Note that this function does not return by default, it only build the select
+  expression for the query. If you want to have the selected fields returned as
+  response you need to pass `returning: true`.
 
   ## Parameters
   - `query_builder`: The QueryBuilder instance.
@@ -62,7 +105,7 @@ defmodule Supabase.PostgREST do
     q
     |> QueryBuilder.change_method(:get)
     |> QueryBuilder.add_param("select", "*")
-    |> QueryBuilder.add_header("Prefer", "count=#{count}")
+    |> QueryBuilder.add_header("prefer", "count=#{count}")
     |> maybe_return(returning)
     |> FilterBuilder.from_query_builder()
   end
@@ -75,7 +118,7 @@ defmodule Supabase.PostgREST do
     q
     |> QueryBuilder.change_method(:get)
     |> QueryBuilder.add_param("select", Enum.join(columns, ","))
-    |> QueryBuilder.add_header("Prefer", "count=#{count}")
+    |> QueryBuilder.add_header("prefer", "count=#{count}")
     |> maybe_return(returning)
     |> FilterBuilder.from_query_builder()
   end
@@ -99,7 +142,7 @@ defmodule Supabase.PostgREST do
   - Supabase documentation on inserts: https://supabase.com/docs/reference/javascript/insert
   """
   @impl true
-  def insert(%QueryBuilder{} = q, data, opts \\ []) do
+  def insert(%QueryBuilder{} = q, data, opts \\ []) when is_map(data) do
     on_conflict = Keyword.get(opts, :on_conflict)
     on_conflict = if on_conflict, do: "on_conflict=#{on_conflict}"
     upsert = if on_conflict, do: "resolution=merge-duplicates"
@@ -108,18 +151,12 @@ defmodule Supabase.PostgREST do
     prefer = ["return=#{returning}", "count=#{count}", on_conflict, upsert]
     prefer = Enum.join(Enum.reject(prefer, &is_nil/1), ",")
 
-    case Jason.encode(data) do
-      {:ok, body} ->
-        q
-        |> QueryBuilder.change_method(:post)
-        |> QueryBuilder.add_header("Prefer", prefer)
-        |> QueryBuilder.add_param("on_conflict", on_conflict)
-        |> QueryBuilder.change_body(body)
-        |> FilterBuilder.from_query_builder()
-
-      _err ->
-        FilterBuilder.new()
-    end
+    q
+    |> QueryBuilder.change_method(:post)
+    |> QueryBuilder.add_header("prefer", prefer)
+    |> QueryBuilder.add_param("on_conflict", on_conflict)
+    |> QueryBuilder.change_body(data)
+    |> FilterBuilder.from_query_builder()
   end
 
   @doc """
@@ -137,7 +174,7 @@ defmodule Supabase.PostgREST do
   - Supabase documentation on upserts: https://supabase.com/docs/reference/javascript/upsert
   """
   @impl true
-  def upsert(%QueryBuilder{} = q, data, opts \\ []) do
+  def upsert(%QueryBuilder{} = q, data, opts \\ []) when is_map(data) do
     on_conflict = Keyword.get(opts, :on_conflict)
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
@@ -145,18 +182,12 @@ defmodule Supabase.PostgREST do
     prefer =
       Enum.join(["resolution=merge-duplicates", "return=#{returning}", "count=#{count}"], ",")
 
-    case Jason.encode(data) do
-      {:ok, body} ->
-        q
-        |> QueryBuilder.change_method(:post)
-        |> QueryBuilder.add_header("Prefer", prefer)
-        |> QueryBuilder.add_param("on_conflict", on_conflict)
-        |> QueryBuilder.change_body(body)
-        |> FilterBuilder.from_query_builder()
-
-      _err ->
-        FilterBuilder.new()
-    end
+    q
+    |> QueryBuilder.change_method(:post)
+    |> QueryBuilder.add_header("prefer", prefer)
+    |> QueryBuilder.add_param("on_conflict", on_conflict)
+    |> QueryBuilder.change_body(data)
+    |> FilterBuilder.from_query_builder()
   end
 
   @doc """
@@ -180,7 +211,7 @@ defmodule Supabase.PostgREST do
 
     q
     |> QueryBuilder.change_method(:delete)
-    |> QueryBuilder.add_header("Prefer", prefer)
+    |> QueryBuilder.add_header("prefer", prefer)
     |> FilterBuilder.from_query_builder()
   end
 
@@ -199,22 +230,16 @@ defmodule Supabase.PostgREST do
   - Supabase documentation on updates: https://supabase.com/docs/reference/javascript/update
   """
   @impl true
-  def update(%QueryBuilder{} = q, data, opts \\ []) do
+  def update(%QueryBuilder{} = q, data, opts \\ []) when is_map(data) do
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
     prefer = Enum.join(["return=#{returning}", "count=#{count}"], ",")
 
-    case Jason.encode(data) do
-      {:ok, body} ->
-        q
-        |> QueryBuilder.change_method(:patch)
-        |> QueryBuilder.add_header("Prefer", prefer)
-        |> QueryBuilder.change_body(body)
-        |> FilterBuilder.from_query_builder()
-
-      _err ->
-        FilterBuilder.new()
-    end
+    q
+    |> QueryBuilder.change_method(:patch)
+    |> QueryBuilder.add_header("prefer", prefer)
+    |> QueryBuilder.change_body(data)
+    |> FilterBuilder.from_query_builder()
   end
 
   @impl true
@@ -968,13 +993,30 @@ defmodule Supabase.PostgREST do
 
   defp parse_response({:error, reason}), do: {:error, reason}
 
-  defp parse_response({:ok, %{status: status, body: raw}}) do
-    with {:ok, body} <- Jason.decode(raw, keys: :atoms) do
-      cond do
-        error_resp?(status) -> {:error, Error.from_raw_body(body)}
-        success_resp?(status) -> {:ok, body}
+  defp parse_response({:ok, %{status: _, body: ""}}) do
+    {:ok, nil}
+  end
+
+  defp parse_response({:ok, %{status: status, body: raw, headers: headers}}) do
+    if json_content?(headers) do
+      with {:ok, body} <- Jason.decode(raw, keys: :atoms) do
+        cond do
+          error_resp?(status) -> {:error, Error.from_raw_body(body)}
+          success_resp?(status) -> {:ok, body}
+        end
       end
+    else
+      {:ok, raw}
     end
+  end
+
+  defp json_content?(headers) when is_list(headers) do
+    headers
+    |> Enum.find_value(fn
+      {"content-type", type} -> type
+      _ -> false
+    end)
+    |> String.match?(~r/json/)
   end
 
   defp error_resp?(status) do
