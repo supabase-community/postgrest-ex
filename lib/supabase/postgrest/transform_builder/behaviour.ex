@@ -19,4 +19,12 @@ defmodule Supabase.PostgREST.TransformBuilder.Behaviour do
   @callback range(Builder.t(), from :: integer, to :: integer) :: Builder.t()
   @callback range(Builder.t(), from :: integer, to :: integer, foreign_table: String.t()) ::
               Builder.t()
+  @callback rollback(Builder.t()) :: Builder.t()
+  @callback returning(Builder.t()) :: Builder.t()
+  @callback returning(Builder.t(), list(String.t()) | String.t()) :: Builder.t()
+  @callback csv(Builder.t()) :: Builder.t()
+  @callback geojson(Builder.t()) :: Builder.t()
+  @callback explain(Builder.t(), options :: explain) :: Builder.t()
+            when explain: list({opt, boolean} | {:format, :json | :text}),
+                 opt: :analyze | :verbose | :settings | :buffers | :wal
 end

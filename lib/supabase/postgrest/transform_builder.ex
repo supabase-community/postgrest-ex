@@ -136,4 +136,147 @@ defmodule Supabase.PostgREST.TransformBuilder do
   def maybe_single(%Builder{} = b) do
     Supabase.PostgREST.with_custom_media_type(b, :pgrst_object)
   end
+
+  @doc """
+  Return `data` as a string in CSV format.
+
+  ## Examples
+      iex> PostgREST.csv(builder)
+      %Builder{headers: %{"accept" => "text/csv"}}
+
+  ## See also
+  https://supabase.com/docs/reference/javascript/db-csv
+  """
+  @impl true
+  def csv(%Builder{} = b) do
+    Builder.add_request_header(b, "accept", "text/csv")
+  end
+
+  @doc """
+  Return `data` as an object in [GeoJSON](https://geojson.org) format.
+
+  ## Examples
+      iex> PostgREST.csv(builder)
+      %Builder{headers: %{"accept" => "application/geo+json"}}
+  """
+  @impl true
+  def geojson(%Builder{} = b) do
+    Builder.add_request_header(b, "accept", "application/geo+json")
+  end
+
+  @explain_default [
+    analyze: false,
+    verbose: false,
+    settings: false,
+    buffers: false,
+    wal: false
+  ]
+
+  @doc """
+  Return `data` as the EXPLAIN plan for the query.
+  You need to enable the [db_plan_enabled](https://supabase.com/docs/guides/database/debugging-performance#enabling-explain) setting before using this method.
+
+  ## Params
+  - `options`: options as a keyword list, these are the possibilities:
+    - `analyze`: boolean, defaults to `false`
+    - `verbose`: boolean, defaults to `false`
+    - `settings`: boolean, default to `false`
+    - `buffers`: boolean, defaults to `false`
+    - `wal`: boolean, default to `false`
+    - `format`: `:json` or `:text`, defaults to `:text`
+
+  ## Examples
+      iex> PostgREST.explain(builder, analyze: true, format: :json, wal: false)
+      %Builder{}
+
+  ## See also
+  https://supabase.com/docs/reference/javascript/explain
+  """
+  @impl true
+  def explain(%Builder{} = b, opts \\ []) do
+    format =
+      opts
+      |> Keyword.get(:format, :text)
+      |> then(fn format ->
+        if format in [:json, :text] do
+          "+#{format};"
+        else
+          "+text;"
+        end
+      end)
+
+    opts =
+      @explain_default
+      |> Keyword.merge(opts)
+      |> Enum.filter(&elem(&1, 1))
+      |> Enum.map_join("|", &elem(&1, 0))
+      |> then(&"options:#{&1}")
+
+    # postgrest-ex sends always only one Accept header
+    # and always sets a default (application/json)
+    for_mediatype = "for=#{b.headers["accept"]}"
+
+    plan = "application/vnd.pgrst.plan#{format};#{for_mediatype};#{opts}"
+
+    Builder.add_request_header(b, "accept", plan)
+  end
+
+  @doc """
+  Rollback the query. `data` will still be returned, but the query is not committed.
+
+  ## Examples
+      iex> PostgREST.rollback(builder)
+      %Builder{headers: %{"prefer" => "tx=rollback"}}
+  """
+  @impl true
+  def rollback(%Builder{} = b) do
+    if prefer = b.headers["prefer"] do
+      Builder.add_request_header(b, "prefer", "#{prefer},tx=rollback")
+    else
+      Builder.add_request_header(b, "prefer", "tx=rollback")
+    end
+  end
+
+  @doc """
+  Perform a SELECT on the query result.
+   
+  By default, `.insert()`, `.update()`, `.upsert()`, and `.delete()` do not
+  return modified rows. By calling this method, modified rows are returned in
+  `data`.
+
+  **Do not** confuse with the `Supabase.PostgREST.QueryBuilder.select/3` function.
+
+  ## Params
+  If called without additional arguments (besides builder), it will fallback to select all
+  relation (table) columns (with `"*"`), otherwise you can pass a list of strings representing
+  the columns to be selected
+
+  ## Examples
+      iex> PostgREST.insert(builder, %{foo: :bar}) |> PostgREST.returning(~w(id foo))
+
+  ## See also
+  https://supabase.com/docs/reference/javascript/db-modifiers-select
+  """
+  @impl true
+  def returning(%Builder{} = b) do
+    prefer = if p = b.headers["prefer"], do: p <> ",", else: ""
+
+    b
+    |> Builder.add_query_param("select", "*")
+    |> Builder.add_request_header("prefer", "#{prefer}return=representation")
+  end
+
+  @impl true
+  def returning(%Builder{} = b, columns) when is_list(columns) do
+    cols =
+      Enum.map_join(columns, ",", fn c ->
+        if String.match?(c, ~r/\"/), do: c, else: String.trim(c)
+      end)
+
+    prefer = if p = b.headers["prefer"], do: p <> ",", else: ""
+
+    b
+    |> Builder.add_query_param("select", cols)
+    |> Builder.add_request_header("prefer", "#{prefer}return=representation")
+  end
 end
