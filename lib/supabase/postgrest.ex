@@ -34,7 +34,7 @@ defmodule Supabase.PostgREST do
   ## Query Builder
 
   for {fun, arity} <- QueryBuilder.__info__(:functions) do
-    (1..arity)
+    1..arity
     |> Enum.map(&Macro.var(:"arg_#{&1}", QueryBuilder))
     |> then(fn args ->
       defdelegate unquote(fun)(unquote_splicing(args)), to: QueryBuilder
@@ -44,7 +44,7 @@ defmodule Supabase.PostgREST do
   ## Filter Builder
 
   for {fun, arity} <- FilterBuilder.__info__(:functions) do
-    (1..arity)
+    1..arity
     |> Enum.map(&Macro.var(:"arg_#{&1}", QueryBuilder))
     |> then(fn args ->
       defdelegate unquote(fun)(unquote_splicing(args)), to: FilterBuilder
@@ -54,7 +54,7 @@ defmodule Supabase.PostgREST do
   ## Transform Builder
 
   for {fun, arity} <- TransformBuilder.__info__(:functions) do
-    (1..arity)
+    1..arity
     |> Enum.map(&Macro.var(:"arg_#{&1}", QueryBuilder))
     |> then(fn args ->
       defdelegate unquote(fun)(unquote_splicing(args)), to: TransformBuilder
