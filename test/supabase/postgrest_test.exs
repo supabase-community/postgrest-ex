@@ -2,45 +2,41 @@ defmodule Supabase.PostgRESTTest do
   use ExUnit.Case
 
   alias Supabase.PostgREST
-  alias Supabase.PostgREST.FilterBuilder
-  alias Supabase.PostgREST.QueryBuilder
+  alias Supabase.PostgREST.Builder
 
-  # Mock the Supabase.Client for the test environment
   setup do
-    client = %Supabase.Client{
-      conn: %{api_key: "test_key", base_url: "http://example.com"},
-      db: %{schema: "public"}
-    }
+    client = Supabase.init_client!("http://some/url", "test-api-key")
 
-    {:ok, client: client}
+    {:ok, %{client: client}}
   end
 
   describe "from/2" do
-    test "initializes a QueryBuilder correctly", %{client: client} do
+    test "initializes a Builder correctly", %{client: client} do
       table = "users"
 
-      assert %QueryBuilder{table: ^table} = PostgREST.from(client, table)
+      assert %Builder{url: url} = PostgREST.from(client, table)
+      assert url.path =~ table
     end
   end
 
   describe "select/3" do
     test "builds a select query with specific columns", %{client: client} do
-      query_builder = QueryBuilder.new("users", client)
+      builder = Builder.new(client, relation: "users")
       columns = ["id", "name", "email"]
       opts = [count: :exact, returning: true]
 
-      result = PostgREST.select(query_builder, columns, opts)
-      assert %FilterBuilder{} = result
+      result = PostgREST.select(builder, columns, opts)
+      assert %Builder{} = result
       assert result.params["select"] == "id,name,email"
       assert result.headers["prefer"] == "count=exact"
     end
 
     test "builds a select query with all columns using '*'", %{client: client} do
-      query_builder = QueryBuilder.new("users", client)
+      builder = Builder.new(client, relation: "users")
       opts = [count: :exact, returning: false]
 
-      result = PostgREST.select(query_builder, "*", opts)
-      assert %FilterBuilder{} = result
+      result = PostgREST.select(builder, "*", opts)
+      assert %Builder{} = result
       assert result.params["select"] == "*"
       assert result.headers["prefer"] == "count=exact"
     end
@@ -48,12 +44,12 @@ defmodule Supabase.PostgRESTTest do
 
   describe "insert/3" do
     test "builds an insert query with correct headers and body", %{client: client} do
-      query_builder = QueryBuilder.new("users", client)
+      builder = Builder.new(client, relation: "users")
       data = %{name: "John Doe", age: 28}
       opts = [on_conflict: "name", returning: :minimal, count: :exact]
 
-      result = PostgREST.insert(query_builder, data, opts)
-      assert %FilterBuilder{} = result
+      result = PostgREST.insert(builder, data, opts)
+      assert %Builder{} = result
       assert result.method == :post
 
       assert result.headers["prefer"] ==
@@ -63,12 +59,12 @@ defmodule Supabase.PostgRESTTest do
 
   describe "update/3" do
     test "creates an update operation with custom options", %{client: client} do
-      query_builder = QueryBuilder.new("users", client)
+      builder = Builder.new(client, relation: "users")
       data = %{name: "Jane Doe"}
       opts = [returning: :representation, count: :exact]
 
-      result = PostgREST.update(query_builder, data, opts)
-      assert %FilterBuilder{} = result
+      result = PostgREST.update(builder, data, opts)
+      assert %Builder{} = result
       assert result.method == :patch
       assert result.headers["prefer"] == "return=representation,count=exact"
     end
@@ -76,11 +72,11 @@ defmodule Supabase.PostgRESTTest do
 
   describe "delete/2" do
     test "builds a delete query with custom preferences", %{client: client} do
-      query_builder = QueryBuilder.new("users", client)
+      builder = Builder.new(client, relation: "users")
       opts = [returning: :representation, count: :exact]
 
-      result = PostgREST.delete(query_builder, opts)
-      assert %FilterBuilder{} = result
+      result = PostgREST.delete(builder, opts)
+      assert %Builder{} = result
       assert result.method == :delete
       assert result.headers["prefer"] == "return=representation,count=exact"
     end
@@ -88,12 +84,12 @@ defmodule Supabase.PostgRESTTest do
 
   describe "upsert/3" do
     test "builds an upsert query with conflict resolution", %{client: client} do
-      query_builder = QueryBuilder.new("users", client)
+      builder = Builder.new(client, relation: "users")
       data = %{name: "Jane Doe"}
       opts = [on_conflict: "name", returning: :representation, count: :exact]
 
-      result = PostgREST.upsert(query_builder, data, opts)
-      assert %FilterBuilder{} = result
+      result = PostgREST.upsert(builder, data, opts)
+      assert %Builder{} = result
       assert result.method == :post
 
       assert result.headers["prefer"] ==
@@ -102,47 +98,42 @@ defmodule Supabase.PostgRESTTest do
   end
 
   describe "filter functions" do
-    setup do
-      client = %Supabase.Client{
-        conn: %{api_key: "test_key", base_url: "http://example.com"}
-      }
-
-      query_builder = QueryBuilder.new("users", client)
-      filter_builder = FilterBuilder.from_query_builder(query_builder)
-      {:ok, filter_builder: filter_builder}
+    setup ctx do
+      builder = Builder.new(ctx.client, relation: "users")
+      {:ok, Map.put(ctx, :builder, builder)}
     end
 
-    test "eq function adds an equality filter", %{filter_builder: fb} do
-      assert %FilterBuilder{params: %{"id" => "eq.123"}} = PostgREST.eq(fb, "id", 123)
+    test "eq function adds an equality filter", %{builder: fb} do
+      assert %Builder{params: %{"id" => "eq.123"}} = PostgREST.eq(fb, "id", 123)
     end
 
-    test "neq function adds a not-equal filter", %{filter_builder: fb} do
-      assert %FilterBuilder{params: %{"status" => "neq.inactive"}} =
+    test "neq function adds a not-equal filter", %{builder: fb} do
+      assert %Builder{params: %{"status" => "neq.inactive"}} =
                PostgREST.neq(fb, "status", "inactive")
     end
 
-    test "gt function adds a greater-than filter", %{filter_builder: fb} do
-      assert %FilterBuilder{params: %{"age" => "gt.21"}} = PostgREST.gt(fb, "age", 21)
+    test "gt function adds a greater-than filter", %{builder: fb} do
+      assert %Builder{params: %{"age" => "gt.21"}} = PostgREST.gt(fb, "age", 21)
     end
 
-    test "lte function adds a less-than-or-equal filter", %{filter_builder: fb} do
-      assert %FilterBuilder{params: %{"age" => "lte.65"}} = PostgREST.lte(fb, "age", 65)
+    test "lte function adds a less-than-or-equal filter", %{builder: fb} do
+      assert %Builder{params: %{"age" => "lte.65"}} = PostgREST.lte(fb, "age", 65)
     end
 
-    test "like function adds a LIKE SQL pattern filter", %{filter_builder: fb} do
-      assert %FilterBuilder{params: %{"name" => "like.%John%"}} =
+    test "like function adds a LIKE SQL pattern filter", %{builder: fb} do
+      assert %Builder{params: %{"name" => "like.%John%"}} =
                PostgREST.like(fb, "name", "%John%")
     end
 
-    test "ilike function adds a case-insensitive LIKE filter", %{filter_builder: fb} do
-      assert %FilterBuilder{params: %{"name" => "ilike.%john%"}} =
+    test "ilike function adds a case-insensitive LIKE filter", %{builder: fb} do
+      assert %Builder{params: %{"name" => "ilike.%john%"}} =
                PostgREST.ilike(fb, "name", "%john%")
     end
 
     test "in function checks if a column's value is within a specified list", %{
-      filter_builder: fb
+      builder: fb
     } do
-      assert %FilterBuilder{params: %{"status" => "in.(active,pending,closed)"}} =
+      assert %Builder{params: %{"status" => "in.(active,pending,closed)"}} =
                PostgREST.in(fb, "status", ["active", "pending", "closed"])
     end
   end
