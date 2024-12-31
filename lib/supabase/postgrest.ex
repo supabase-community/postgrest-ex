@@ -43,7 +43,7 @@ defmodule Supabase.PostgREST do
 
   ## Filter Builder
 
-  for {fun, arity} <- FilterBuilder.__info__(:functions) do
+  for {fun, arity} <- FilterBuilder.__info__(:functions), fun != :process_condition do
     1..arity
     |> Enum.map(&Macro.var(:"arg_#{&1}", QueryBuilder))
     |> then(fn args ->

@@ -28,6 +28,7 @@ defmodule Supabase.PostgREST.Builder do
   @doc "Creates a new `#{__MODULE__}` instance"
   def new(%Client{} = client, relation: relation) do
     %__MODULE__{
+      client: client,
       schema: client.db.schema,
       method: :get,
       params: %{},

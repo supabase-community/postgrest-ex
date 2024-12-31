@@ -130,11 +130,11 @@ defmodule Supabase.PostgRESTTest do
                PostgREST.ilike(fb, "name", "%john%")
     end
 
-    test "in function checks if a column's value is within a specified list", %{
+    test "within function checks if a column's value is within a specified list", %{
       builder: fb
     } do
       assert %Builder{params: %{"status" => "in.(active,pending,closed)"}} =
-               PostgREST.in(fb, "status", ["active", "pending", "closed"])
+               PostgREST.within(fb, "status", ["active", "pending", "closed"])
     end
   end
 end
