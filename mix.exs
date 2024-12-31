@@ -1,12 +1,12 @@
 defmodule PostgREST.MixProject do
   use Mix.Project
 
-  @source_url "https://github.com/zoedsoupe/postgrest-ex"
+  @source_url "https://github.com/supabase-community/postgrest-ex"
 
   def project do
     [
       app: :supabase_postgrest,
-      version: "0.1.5",
+      version: "0.2.0",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
