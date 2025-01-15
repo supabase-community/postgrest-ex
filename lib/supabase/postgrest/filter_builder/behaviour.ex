@@ -1,7 +1,7 @@
 defmodule Supabase.PostgREST.FilterBuilder.Behaviour do
   @moduledoc "Defines the interface for the FilterBuilder module"
 
-  alias Supabase.PostgREST.Builder
+  alias Supabase.Fetcher.Request
 
   @type operator ::
           :eq
@@ -45,42 +45,42 @@ defmodule Supabase.PostgREST.FilterBuilder.Behaviour do
              list({:any | :all, boolean})}
   @type text_search_options :: [type: :plain | :phrase | :websearch]
 
-  @callback filter(Builder.t(), column :: String.t(), operator, String.Chars.t()) :: Builder.t()
-  @callback all_of(Builder.t(), list(condition)) :: Builder.t()
-  @callback all_of(Builder.t(), list(condition), foreign_table: String.t()) :: Builder.t()
-  @callback any_of(Builder.t(), list(condition)) :: Builder.t()
-  @callback any_of(Builder.t(), list(condition), foreign_table: String.t()) :: Builder.t()
-  @callback negate(Builder.t(), column :: String.t(), operator, String.Chars.t()) :: Builder.t()
-  @callback match(Builder.t(), query :: matcher) :: Builder.t()
+  @callback filter(Request.t(), column :: String.t(), operator, String.Chars.t()) :: Request.t()
+  @callback all_of(Request.t(), list(condition)) :: Request.t()
+  @callback all_of(Request.t(), list(condition), foreign_table: String.t()) :: Request.t()
+  @callback any_of(Request.t(), list(condition)) :: Request.t()
+  @callback any_of(Request.t(), list(condition), foreign_table: String.t()) :: Request.t()
+  @callback negate(Request.t(), column :: String.t(), operator, String.Chars.t()) :: Request.t()
+  @callback match(Request.t(), query :: matcher) :: Request.t()
             when matcher: %{String.t() => String.Chars.t()}
-  @callback eq(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback neq(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback gt(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback gte(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback lt(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback lte(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback like(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback like_all_of(Builder.t(), column :: String.t(), list(String.Chars.t())) :: Builder.t()
-  @callback like_any_of(Builder.t(), column :: String.t(), list(String.Chars.t())) :: Builder.t()
-  @callback ilike(Builder.t(), column :: String.t(), term) :: Builder.t()
-  @callback ilike_all_of(Builder.t(), column :: String.t(), list(String.Chars.t())) :: Builder.t()
-  @callback ilike_any_of(Builder.t(), column :: String.t(), list(String.Chars.t())) :: Builder.t()
-  @callback is(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback within(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback contains(Builder.t(), column :: String.t(), list(String.Chars.t())) :: Builder.t()
-  @callback contained_by(Builder.t(), column :: String.t(), list(String.Chars.t())) :: Builder.t()
-  @callback range_lt(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback range_gt(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback range_gte(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback range_lte(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback range_adjacent(Builder.t(), column :: String.t(), String.Chars.t()) :: Builder.t()
-  @callback overlaps(Builder.t(), column :: String.t(), list(String.Chars.t())) :: Builder.t()
-  @callback text_search(Builder.t(), column :: String.t(), query :: String.t()) ::
-              Builder.t()
+  @callback eq(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback neq(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback gt(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback gte(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback lt(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback lte(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback like(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback like_all_of(Request.t(), column :: String.t(), list(String.Chars.t())) :: Request.t()
+  @callback like_any_of(Request.t(), column :: String.t(), list(String.Chars.t())) :: Request.t()
+  @callback ilike(Request.t(), column :: String.t(), term) :: Request.t()
+  @callback ilike_all_of(Request.t(), column :: String.t(), list(String.Chars.t())) :: Request.t()
+  @callback ilike_any_of(Request.t(), column :: String.t(), list(String.Chars.t())) :: Request.t()
+  @callback is(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback within(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback contains(Request.t(), column :: String.t(), list(String.Chars.t())) :: Request.t()
+  @callback contained_by(Request.t(), column :: String.t(), list(String.Chars.t())) :: Request.t()
+  @callback range_lt(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback range_gt(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback range_gte(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback range_lte(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback range_adjacent(Request.t(), column :: String.t(), String.Chars.t()) :: Request.t()
+  @callback overlaps(Request.t(), column :: String.t(), list(String.Chars.t())) :: Request.t()
+  @callback text_search(Request.t(), column :: String.t(), query :: String.t()) ::
+              Request.t()
   @callback text_search(
-              Builder.t(),
+              Request.t(),
               column :: String.t(),
               query :: String.t(),
               text_search_options
-            ) :: Builder.t()
+            ) :: Request.t()
 end

@@ -5,7 +5,7 @@ defmodule Supabase.PostgREST.QueryBuilder do
   This module includes functionality for selecting fields, inserting new records, updating existing ones, and deleting records from a specified table. These operations define the high-level intent of the query, such as whether it retrieves, modifies, or removes data.
   """
 
-  alias Supabase.PostgREST.Builder
+  alias Supabase.Fetcher.Request
 
   @behaviour Supabase.PostgREST.QueryBuilder.Behaviour
 
@@ -18,7 +18,7 @@ defmodule Supabase.PostgREST.QueryBuilder do
   response you need to pass `returning: true`.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `columns`: A list of column names to fetch or '*' for all columns.
   - `opts`: Options such as `:count` and `:returning`.
 
@@ -31,29 +31,29 @@ defmodule Supabase.PostgREST.QueryBuilder do
   @impl true
   def select(builder, columns, opts \\ [])
 
-  def select(%Builder{} = b, "*", opts) do
+  def select(%Request{} = b, "*", opts) do
     do_select(b, "*", opts)
   end
 
-  def select(%Builder{} = b, columns, opts)
+  def select(%Request{} = b, columns, opts)
       when is_list(columns) do
     do_select(b, Enum.join(columns, ","), opts)
   end
 
-  @spec do_select(Builder.t(), String.t(), keyword) :: Builder.t()
-  defp do_select(%Builder{} = b, columns, opts) do
+  @spec do_select(Request.t(), String.t(), keyword) :: Request.t()
+  defp do_select(%Request{} = b, columns, opts) do
     count = Keyword.get(opts, :count, :exact)
     returning = Keyword.get(opts, :returning, false)
 
     b
-    |> Builder.change_method(:get)
-    |> Builder.add_query_param("select", columns)
-    |> Builder.add_request_header("prefer", "count=#{count}")
+    |> Request.with_method(:get)
+    |> Request.with_query(%{"select" => columns})
+    |> Request.with_headers(%{"prefer" => "count=#{count}"})
     |> then(fn builder ->
       if returning do
-        Builder.change_method(builder, :get)
+        Request.with_method(builder, :get)
       else
-        Builder.change_method(builder, :head)
+        Request.with_method(builder, :head)
       end
     end)
   end
@@ -63,7 +63,7 @@ defmodule Supabase.PostgREST.QueryBuilder do
   result should be returned.
 
   ## Parameters
-  - `builder`: The Builder to use.
+  - `builder`: The `Supabase.Fetcher.Request` to use.
   - `data`: The data to be inserted, typically a map or a list of maps.
   - `opts`: Options like `:on_conflict`, `:returning`, and `:count`.
 
@@ -74,7 +74,7 @@ defmodule Supabase.PostgREST.QueryBuilder do
   - Supabase documentation on inserts: https://supabase.com/docs/reference/javascript/insert
   """
   @impl true
-  def insert(%Builder{} = b, data, opts \\ []) when is_map(data) do
+  def insert(%Request{} = b, data, opts \\ []) when is_map(data) do
     on_conflict = Keyword.get(opts, :on_conflict)
     on_conflict = if on_conflict, do: "on_conflict=#{on_conflict}"
     upsert = if on_conflict, do: "resolution=merge-duplicates"
@@ -84,17 +84,17 @@ defmodule Supabase.PostgREST.QueryBuilder do
     prefer = Enum.join(Enum.reject(prefer, &is_nil/1), ",")
 
     b
-    |> Builder.change_method(:post)
-    |> Builder.add_request_header("prefer", prefer)
-    |> Builder.add_query_param("on_conflict", on_conflict)
-    |> Builder.change_body(data)
+    |> Request.with_method(:post)
+    |> Request.with_headers(%{"prefer" => prefer})
+    |> Request.with_query(%{"on_conflict" => on_conflict})
+    |> Request.with_body(data)
   end
 
   @doc """
   Upserts data into a table, allowing for conflict resolution and specifying return options.
 
   ## Parameters
-  - `builder`: The Builder to use.
+  - `builder`: The `Supabase.Fetcher.Request` to use.
   - `data`: The data to upsert, typically a map or a list of maps.
   - `opts`: Options like `:on_conflict`, `:returning`, and `:count`.
 
@@ -105,7 +105,7 @@ defmodule Supabase.PostgREST.QueryBuilder do
   - Supabase documentation on upserts: https://supabase.com/docs/reference/javascript/upsert
   """
   @impl true
-  def upsert(%Builder{} = b, data, opts \\ []) when is_map(data) do
+  def upsert(%Request{} = b, data, opts \\ []) when is_map(data) do
     on_conflict = Keyword.get(opts, :on_conflict)
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
@@ -114,17 +114,17 @@ defmodule Supabase.PostgREST.QueryBuilder do
       Enum.join(["resolution=merge-duplicates", "return=#{returning}", "count=#{count}"], ",")
 
     b
-    |> Builder.change_method(:post)
-    |> Builder.add_request_header("prefer", prefer)
-    |> Builder.add_query_param("on_conflict", on_conflict)
-    |> Builder.change_body(data)
+    |> Request.with_method(:post)
+    |> Request.with_headers(%{"prefer" => prefer})
+    |> Request.with_query(%{"on_conflict" => on_conflict})
+    |> Request.with_body(data)
   end
 
   @doc """
-  Deletes records from a table based on the conditions specified in the Builder.
+  Deletes records from a table based on the conditions specified.
 
   ## Parameters
-  - `builder`: The Builder to use.
+  - `builder`: The `Supabase.Fetcher.Request` to use.
   - `opts`: Options such as `:returning` and `:count`.
 
   ## Examples
@@ -134,21 +134,21 @@ defmodule Supabase.PostgREST.QueryBuilder do
   - Supabase documentation on deletes: https://supabase.com/docs/reference/javascript/delete
   """
   @impl true
-  def delete(%Builder{} = b, opts \\ []) do
+  def delete(%Request{} = b, opts \\ []) do
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
     prefer = Enum.join(["return=#{returning}", "count=#{count}"], ",")
 
     b
-    |> Builder.change_method(:delete)
-    |> Builder.add_request_header("prefer", prefer)
+    |> Request.with_method(:delete)
+    |> Request.with_headers(%{"prefer" => prefer})
   end
 
   @doc """
   Updates existing records in the database. Allows specifying return options and how the update is counted.
 
   ## Parameters
-  - `builder`: The Builder to use.
+  - `builder`: The `Supabase.Fetcher.Request` to use.
   - `data`: The new data for the update, typically a map or list of maps.
   - `opts`: Options such as `:returning` and `:count`.
 
@@ -159,14 +159,14 @@ defmodule Supabase.PostgREST.QueryBuilder do
   - Supabase documentation on updates: https://supabase.com/docs/reference/javascript/update
   """
   @impl true
-  def update(%Builder{} = b, data, opts \\ []) when is_map(data) do
+  def update(%Request{} = b, data, opts \\ []) when is_map(data) do
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
     prefer = Enum.join(["return=#{returning}", "count=#{count}"], ",")
 
     b
-    |> Builder.change_method(:patch)
-    |> Builder.add_request_header("prefer", prefer)
-    |> Builder.change_body(data)
+    |> Request.with_method(:patch)
+    |> Request.with_headers(%{"prefer" => prefer})
+    |> Request.with_body(data)
   end
 end

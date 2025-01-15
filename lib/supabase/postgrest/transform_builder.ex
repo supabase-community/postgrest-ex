@@ -5,7 +5,7 @@ defmodule Supabase.PostgREST.TransformBuilder do
   This module provides functionality for ordering, limiting, and paginating query results. These transformations modify how data is structured or retrieved, enabling precise control over the format and amount of data returned.
   """
 
-  alias Supabase.PostgREST.Builder
+  alias Supabase.Fetcher.Request
 
   @behaviour Supabase.PostgREST.TransformBuilder.Behaviour
 
@@ -13,7 +13,7 @@ defmodule Supabase.PostgREST.TransformBuilder do
   Limits the number of results returned by the query, optionally scoping this limit to a specific foreign table.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `count`: The maximum number of results to return.
   - `opts`: Optional parameters, which may include a foreign table.
 
@@ -24,11 +24,11 @@ defmodule Supabase.PostgREST.TransformBuilder do
   - Supabase query limits: https://supabase.com/docs/reference/javascript/using-filters#limit
   """
   @impl true
-  def limit(%Builder{} = f, count, opts \\ []) do
+  def limit(%Request{} = f, count, opts \\ []) do
     if foreign = Keyword.get(opts, :foreign_table) do
-      Builder.add_query_param(f, "#{foreign}.limit", to_string(count))
+      Request.with_query(f, %{"#{foreign}.limit" => to_string(count)})
     else
-      Builder.add_query_param(f, "limit", to_string(count))
+      Request.with_query(f, %{"limit" => to_string(count)})
     end
   end
 
@@ -38,7 +38,7 @@ defmodule Supabase.PostgREST.TransformBuilder do
   You can order referenced tables, but it only affects the ordering of the parent table if you use `!inner` in the query.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column by which to order the results.
   - `opts`: Options such as direction (`:asc` or `:desc`) and null handling (`:null_first` or `:null_last`).
 
@@ -49,17 +49,14 @@ defmodule Supabase.PostgREST.TransformBuilder do
   - Supabase ordering results: https://supabase.com/docs/reference/javascript/using-filters#order
   """
   @impl true
-  def order(%Builder{} = f, column, opts \\ []) do
+  def order(%Request{} = f, column, opts \\ []) do
     order = if opts[:asc], do: "asc", else: "desc"
     nulls_first = if opts[:null_first], do: "nullsfirst", else: "nullslast"
     foreign = Keyword.get(opts, :foreign_table)
     key = if foreign, do: "#{foreign}.order", else: "order"
+    order = Enum.join([column, order, nulls_first], ".")
 
-    if curr = f.params[key] do
-      Builder.add_query_param(f, key, "#{curr},#{column}.#{order}.#{nulls_first}")
-    else
-      Builder.add_query_param(f, key, "#{column}.#{order}.#{nulls_first}")
-    end
+    Request.merge_query_param(f, key, order, with: ",")
   end
 
   defguardp is_number(a, b)
@@ -74,7 +71,7 @@ defmodule Supabase.PostgREST.TransformBuilder do
   The `from` and `to` values are 0-based and inclusive: `range(1, 3)` will include the second, third and fourth rows of the query.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `from`: The starting index for the results.
   - `to`: The ending index for the results, inclusive.
 
@@ -85,15 +82,15 @@ defmodule Supabase.PostgREST.TransformBuilder do
   - Supabase range queries: https://supabase.com/docs/reference/javascript/using-filters#range
   """
   @impl true
-  def range(%Builder{} = f, from, to, opts \\ []) when is_number(from, to) do
+  def range(%Request{} = f, from, to, opts \\ []) when is_number(from, to) do
     if foreign = Keyword.get(opts, :foreign_table) do
       f
-      |> Builder.add_query_param("#{foreign}.offset", to_string(from))
-      |> Builder.add_query_param("#{foreign}.limit", to_string(to - from + 1))
+      |> Request.with_query(%{"#{foreign}.offset" => to_string(from)})
+      |> Request.with_query(%{"#{foreign}.limit" => to_string(to - from + 1)})
     else
       f
-      |> Builder.add_query_param("offset", to_string(from))
-      |> Builder.add_query_param("limit", to_string(to - from + 1))
+      |> Request.with_query(%{"offset" => to_string(from)})
+      |> Request.with_query(%{"limit" => to_string(to - from + 1)})
     end
   end
 
@@ -102,7 +99,7 @@ defmodule Supabase.PostgREST.TransformBuilder do
   Query result must be one row (e.g. using `.limit(1)`), otherwise this returns an error.
 
   ## Parameters
-  - `builder`: The Builder instance to modify.
+  - `builder`: The `Supabase.Fetcher.Request` instance to modify.
 
   ## Examples
       iex> PostgREST.single(builder)
@@ -111,7 +108,7 @@ defmodule Supabase.PostgREST.TransformBuilder do
   - Supabase single row mode: https://supabase.com/docs/reference/javascript/using-filters#single-row
   """
   @impl true
-  def single(%Builder{} = b) do
+  def single(%Request{} = b) do
     Supabase.PostgREST.with_custom_media_type(b, :pgrst_object)
   end
 
@@ -120,7 +117,7 @@ defmodule Supabase.PostgREST.TransformBuilder do
   Query result must be one row (e.g. using `.limit(1)`), otherwise this returns an error.
 
   ## Parameters
-  - `builder`: The Builder instance to modify.
+  - `builder`: The `Supabase.Fetcher.Request` instance to modify.
 
   ## Examples
       iex> PostgREST.single(builder)
@@ -129,11 +126,11 @@ defmodule Supabase.PostgREST.TransformBuilder do
   - Supabase single row mode: https://supabase.com/docs/reference/javascript/using-filters#single-row
   """
   @impl true
-  def maybe_single(%Builder{} = b) when b.method == :get do
+  def maybe_single(%Request{} = b) when b.method == :get do
     Supabase.PostgREST.with_custom_media_type(b, :json)
   end
 
-  def maybe_single(%Builder{} = b) do
+  def maybe_single(%Request{} = b) do
     Supabase.PostgREST.with_custom_media_type(b, :pgrst_object)
   end
 
@@ -142,14 +139,14 @@ defmodule Supabase.PostgREST.TransformBuilder do
 
   ## Examples
       iex> PostgREST.csv(builder)
-      %Builder{headers: %{"accept" => "text/csv"}}
+      %Supabase.Fetcher.Request{headers: %{"accept" => "text/csv"}}
 
   ## See also
   https://supabase.com/docs/reference/javascript/db-csv
   """
   @impl true
-  def csv(%Builder{} = b) do
-    Builder.add_request_header(b, "accept", "text/csv")
+  def csv(%Request{} = b) do
+    Request.with_headers(b, %{"accept" => "text/csv"})
   end
 
   @doc """
@@ -157,11 +154,11 @@ defmodule Supabase.PostgREST.TransformBuilder do
 
   ## Examples
       iex> PostgREST.csv(builder)
-      %Builder{headers: %{"accept" => "application/geo+json"}}
+      %Supabase.Fetcher.Request{headers: %{"accept" => "application/geo+json"}}
   """
   @impl true
-  def geojson(%Builder{} = b) do
-    Builder.add_request_header(b, "accept", "application/geo+json")
+  def geojson(%Request{} = b) do
+    Request.with_headers(b, %{"accept" => "application/geo+json"})
   end
 
   @explain_default [
@@ -187,13 +184,13 @@ defmodule Supabase.PostgREST.TransformBuilder do
 
   ## Examples
       iex> PostgREST.explain(builder, analyze: true, format: :json, wal: false)
-      %Builder{}
+      %Supabase.Fetcher.Request{}
 
   ## See also
   https://supabase.com/docs/reference/javascript/explain
   """
   @impl true
-  def explain(%Builder{} = b, opts \\ []) do
+  def explain(%Request{} = b, opts \\ []) do
     format =
       opts
       |> Keyword.get(:format, :text)
@@ -218,7 +215,7 @@ defmodule Supabase.PostgREST.TransformBuilder do
 
     plan = "application/vnd.pgrst.plan#{format};#{for_mediatype};#{opts}"
 
-    Builder.add_request_header(b, "accept", plan)
+    Request.with_headers(b, %{"accept" => plan})
   end
 
   @doc """
@@ -226,15 +223,11 @@ defmodule Supabase.PostgREST.TransformBuilder do
 
   ## Examples
       iex> PostgREST.rollback(builder)
-      %Builder{headers: %{"prefer" => "tx=rollback"}}
+      %Supabase.Fetcher.Request{headers: %{"prefer" => "tx=rollback"}}
   """
   @impl true
-  def rollback(%Builder{} = b) do
-    if prefer = b.headers["prefer"] do
-      Builder.add_request_header(b, "prefer", "#{prefer},tx=rollback")
-    else
-      Builder.add_request_header(b, "prefer", "tx=rollback")
-    end
+  def rollback(%Request{} = b) do
+    Request.merge_req_header(b, "prefer", "tx=rollback", with: ",")
   end
 
   @doc """
@@ -258,25 +251,21 @@ defmodule Supabase.PostgREST.TransformBuilder do
   https://supabase.com/docs/reference/javascript/db-modifiers-select
   """
   @impl true
-  def returning(%Builder{} = b) do
-    prefer = if p = b.headers["prefer"], do: p <> ",", else: ""
-
+  def returning(%Request{} = b) do
     b
-    |> Builder.add_query_param("select", "*")
-    |> Builder.add_request_header("prefer", "#{prefer}return=representation")
+    |> Request.with_query(%{"select" => "*"})
+    |> Request.merge_req_header("prefer", "return=representation")
   end
 
   @impl true
-  def returning(%Builder{} = b, columns) when is_list(columns) do
+  def returning(%Request{} = b, columns) when is_list(columns) do
     cols =
       Enum.map_join(columns, ",", fn c ->
         if String.match?(c, ~r/\"/), do: c, else: String.trim(c)
       end)
 
-    prefer = if p = b.headers["prefer"], do: p <> ",", else: ""
-
     b
-    |> Builder.add_query_param("select", cols)
-    |> Builder.add_request_header("prefer", "#{prefer}return=representation")
+    |> Request.with_query(%{"select" => cols})
+    |> Request.merge_req_header("prefer", "return=representation")
   end
 end

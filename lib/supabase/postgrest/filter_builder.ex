@@ -5,7 +5,7 @@ defmodule Supabase.PostgREST.FilterBuilder do
   This module allows you to define conditions that restrict the data returned by the query. Filters can include equality checks, range conditions, pattern matching, and more. These operations translate into query parameters that control the subset of data fetched or manipulated.
   """
 
-  alias Supabase.PostgREST.Builder
+  alias Supabase.Fetcher.Request
 
   @behaviour Supabase.PostgREST.FilterBuilder.Behaviour
 
@@ -64,10 +64,10 @@ defmodule Supabase.PostgREST.FilterBuilder do
       iex> PostgREST.filter(builder, "id", "not", 12)
   """
   @impl true
-  def filter(%Builder{} = b, column, op, value)
+  def filter(%Request{} = b, column, op, value)
       when is_binary(column) and is_filter_op(op) do
     condition = process_condition({op, column, value})
-    Builder.add_query_param(b, column, condition)
+    Request.with_query(b, %{column => condition})
   end
 
   @doc """
@@ -81,7 +81,7 @@ defmodule Supabase.PostgREST.FilterBuilder do
   You can optionally use the custom DSL to represent conditions instead of a raw string, look at the examples and the `Supabase.PostgREST.FilterBuilder.Behaviour.condition()` type spec.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `columns`: A list of conditions that should all be met.
   - `opts`: Optional parameters, which can include specifying a foreign table.
 
@@ -101,21 +101,21 @@ defmodule Supabase.PostgREST.FilterBuilder do
   @impl true
   def all_of(builder, patterns, opts \\ [])
 
-  def all_of(%Builder{} = b, patterns, opts) when is_binary(patterns) do
+  def all_of(%Request{} = b, patterns, opts) when is_binary(patterns) do
     if foreign = Keyword.get(opts, :foreign_table) do
-      Builder.add_query_param(b, "#{foreign}.and", "(#{patterns})")
+      Request.with_query(b, %{"#{foreign}.and" => "(#{patterns})"})
     else
-      Builder.add_query_param(b, "and", "(#{patterns})")
+      Request.with_query(b, %{"and" => "(#{patterns})"})
     end
   end
 
-  def all_of(%Builder{} = b, patterns, opts) when is_list(patterns) do
+  def all_of(%Request{} = b, patterns, opts) when is_list(patterns) do
     filters = Enum.map_join(patterns, ",", &process_condition/1)
 
     if foreign = Keyword.get(opts, :foreign_table) do
-      Builder.add_query_param(b, "#{foreign}.and", "(#{filters})")
+      Request.with_query(b, %{"#{foreign}.and" => "(#{filters})"})
     else
-      Builder.add_query_param(b, "and", "(#{filters})")
+      Request.with_query(b, %{"and" => "(#{filters})"})
     end
   end
 
@@ -130,7 +130,7 @@ defmodule Supabase.PostgREST.FilterBuilder do
   You can optionally use the custom DSL to represent conditions instead of a raw string, look at the examples and the `Supabase.PostgREST.FilterBuilder.Behaviour.condition()` type spec.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `columns`: A list of conditions where at least one should be met.
   - `opts`: Optional parameters, which can include specifying a foreign table.
 
@@ -150,21 +150,21 @@ defmodule Supabase.PostgREST.FilterBuilder do
   @impl true
   def any_of(builder, patterns, opts \\ [])
 
-  def any_of(%Builder{} = b, patterns, opts) when is_binary(patterns) do
+  def any_of(%Request{} = b, patterns, opts) when is_binary(patterns) do
     if foreign = Keyword.get(opts, :foreign_table) do
-      Builder.add_query_param(b, "#{foreign}.or", "(#{patterns})")
+      Request.with_query(b, %{"#{foreign}.or" => "(#{patterns})"})
     else
-      Builder.add_query_param(b, "or", "(#{patterns})")
+      Request.with_query(b, %{"or" => "(#{patterns})"})
     end
   end
 
-  def any_of(%Builder{} = b, patterns, opts) when is_list(patterns) do
+  def any_of(%Request{} = b, patterns, opts) when is_list(patterns) do
     filters = Enum.map_join(patterns, ",", &process_condition/1)
 
     if foreign = Keyword.get(opts, :foreign_table) do
-      Builder.add_query_param(b, "#{foreign}.or", "(#{filters})")
+      Request.with_query(b, %{"#{foreign}.or" => "(#{filters})"})
     else
-      Builder.add_query_param(b, "or", "(#{filters})")
+      Request.with_query(b, %{"or" => "(#{filters})"})
     end
   end
 
@@ -176,7 +176,7 @@ defmodule Supabase.PostgREST.FilterBuilder do
   to make sure they are properly sanitized.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the negation.
   - `op`: The operator used in the condition (e.g., "eq", "gt").
   - `value`: The value to compare against, must implement the `String.Chars` protocol
@@ -188,9 +188,9 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase negation filters: https://supabase.com/docs/reference/javascript/using-filters#negation
   """
   @impl true
-  def negate(%Builder{} = b, column, op, value)
+  def negate(%Request{} = b, column, op, value)
       when is_binary(column) and is_filter_op(op) do
-    Builder.add_query_param(b, column, "not.#{op}.#{value}")
+    Request.with_query(b, %{column => "not.#{op}.#{value}"})
   end
 
   alias Supabase.PostgREST.FilterBuilder.Behaviour, as: Interface
@@ -246,9 +246,9 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase ordering results: https://supabase.com/docs/reference/javascript/using-filters#match
   """
   @impl true
-  def match(%Builder{} = b, %{} = query) do
+  def match(%Request{} = b, %{} = query) do
     for {k, v} <- Map.to_list(query), reduce: b do
-      b -> Builder.add_query_param(b, k, "eq.#{v}")
+      b -> Request.with_query(b, %{k => "eq.#{v}"})
     end
   end
 
@@ -258,7 +258,7 @@ defmodule Supabase.PostgREST.FilterBuilder do
   To check if the value of `column` is NULL, you should use `.is()` instead.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `value`: The value the column must equal, must implement `String.Chars` protocol
 
@@ -269,15 +269,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase equality filters: https://supabase.com/docs/reference/javascript/using-filters#equality
   """
   @impl true
-  def eq(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "eq.#{value}")
+  def eq(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "eq.#{value}"})
   end
 
   @doc """
   Match only rows where `column` is not equal to `value`.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `value`: The value that the column must not equal, must implement `String.Chars` protocol
 
@@ -288,15 +288,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase not equal filter: https://supabase.com/docs/reference/javascript/using-filters#not-equal
   """
   @impl true
-  def neq(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "neq.#{value}")
+  def neq(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "neq.#{value}"})
   end
 
   @doc """
   Adds a 'greater than' filter to the query, specifying that the column's value must be greater than the specified value.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `value`: The value that the column must be greater than, must implement the `String.Chars` protocol
 
@@ -307,15 +307,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase greater than filter: https://supabase.com/docs/reference/javascript/using-filters#greater-than
   """
   @impl true
-  def gt(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "gt.#{value}")
+  def gt(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "gt.#{value}"})
   end
 
   @doc """
   Adds a 'greater than or equal to' filter to the query, specifying that the column's value must be greater than or equal to the specified value.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `value`: The value that the column must be greater than or equal to, must implement the `String.Chars` protocol
 
@@ -326,15 +326,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase greater than or equal filter: https://supabase.com/docs/reference/javascript/using-filters#greater-than-or-equal
   """
   @impl true
-  def gte(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "gte.#{value}")
+  def gte(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "gte.#{value}"})
   end
 
   @doc """
   Adds a 'less than' filter to the query, specifying that the column's value must be less than the specified value.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `value`: The value that the column must be less than, must implement the `String.Chars` protocol
 
@@ -345,15 +345,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase less than filter: https://supabase.com/docs/reference/javascript/using-filters#less-than
   """
   @impl true
-  def lt(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "lt.#{value}")
+  def lt(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "lt.#{value}"})
   end
 
   @doc """
   Adds a 'less than or equal to' filter to the query, specifying that the column's value must be less than or equal to the specified value.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `value`: The value that the column must be less than or equal to, must implement the `String.Chars` protocol
 
@@ -364,15 +364,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase less than or equal filter: https://supabase.com/docs/reference/javascript/using-filters#less-than-or-equal
   """
   @impl true
-  def lte(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "lte.#{value}")
+  def lte(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "lte.#{value}"})
   end
 
   @doc """
   Adds a 'like' filter to the query, allowing for simple pattern matching (SQL LIKE).
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `value`: The pattern to match against the column's value, must implement the `String.Chars` protocol
 
@@ -383,8 +383,8 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase like filter: https://supabase.com/docs/reference/javascript/using-filters#like
   """
   @impl true
-  def like(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "like.#{value}")
+  def like(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "like.#{value}"})
   end
 
   @doc """
@@ -398,9 +398,9 @@ defmodule Supabase.PostgREST.FilterBuilder do
       iex> PostgREST.like_all_of(builder, "name", ["jhon", "maria", "joão"])
   """
   @impl true
-  def like_all_of(%Builder{} = b, column, values)
+  def like_all_of(%Request{} = b, column, values)
       when is_binary(column) and is_list(values) do
-    Builder.add_query_param(b, column, "like(all).{#{Enum.join(values, ",")}}")
+    Request.with_query(b, %{column => "like(all).{#{Enum.join(values, ",")}}"})
   end
 
   @doc """
@@ -414,16 +414,16 @@ defmodule Supabase.PostgREST.FilterBuilder do
       iex> PostgREST.like_any_of(builder, "name", ["jhon", "maria", "joão"])
   """
   @impl true
-  def like_any_of(%Builder{} = b, column, values)
+  def like_any_of(%Request{} = b, column, values)
       when is_binary(column) and is_list(values) do
-    Builder.add_query_param(b, column, "like(any).{#{Enum.join(values, ",")}}")
+    Request.with_query(b, %{column => "like(any).{#{Enum.join(values, ",")}}"})
   end
 
   @doc """
   Adds an 'ilike' filter to the query, allowing for case-insensitive pattern matching (SQL ILIKE).
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `value`: The pattern to match against the column's value, ignoring case, must implement the `String.Chars` protocol
 
@@ -434,8 +434,8 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase ilike filter: https://supabase.com/docs/reference/javascript/using-filters#ilike
   """
   @impl true
-  def ilike(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "ilike.#{value}")
+  def ilike(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "ilike.#{value}"})
   end
 
   @doc """
@@ -449,9 +449,9 @@ defmodule Supabase.PostgREST.FilterBuilder do
       iex> PostgREST.ilike_all_of(builder, "name", ["jhon", "maria", "joão"])
   """
   @impl true
-  def ilike_all_of(%Builder{} = f, column, values)
+  def ilike_all_of(%Request{} = f, column, values)
       when is_binary(column) and is_list(values) do
-    Builder.add_query_param(f, column, "ilike(all).{#{Enum.join(values, ",")}}")
+    Request.with_query(f, %{column => "ilike(all).{#{Enum.join(values, ",")}}"})
   end
 
   @doc """
@@ -465,9 +465,9 @@ defmodule Supabase.PostgREST.FilterBuilder do
       iex> PostgREST.ilike_any_of(builder, "name", ["jhon", "maria", "joão"])
   """
   @impl true
-  def ilike_any_of(%Builder{} = f, column, values)
+  def ilike_any_of(%Request{} = f, column, values)
       when is_binary(column) and is_list(values) do
-    Builder.add_query_param(f, column, "ilike(any).{#{Enum.join(values, ",")}}")
+    Request.with_query(f, %{column => "ilike(any).{#{Enum.join(values, ",")}}"})
   end
 
   @doc """
@@ -480,7 +480,7 @@ defmodule Supabase.PostgREST.FilterBuilder do
   will behave the same way as `.eq()`.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `value`: The value to check the column against (typically nil or a boolean).
 
@@ -491,19 +491,19 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase is filter: https://supabase.com/docs/reference/javascript/using-filters#is
   """
   @impl true
-  def is(%Builder{} = f, column, nil) when is_binary(column) do
-    Builder.add_query_param(f, column, "is.null")
+  def is(%Request{} = f, column, nil) when is_binary(column) do
+    Request.with_query(f, %{column => "is.null"})
   end
 
-  def is(%Builder{} = f, column, value) when is_binary(column) and is_boolean(value) do
-    Builder.add_query_param(f, column, "is.#{value}")
+  def is(%Request{} = f, column, value) when is_binary(column) and is_boolean(value) do
+    Request.with_query(f, %{column => "is.#{value}"})
   end
 
   @doc """
   Filters the query by checking if the column's value is within an array of specified values.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to filter.
   - `values`: A list of acceptable values for the column, all elements must implement the `String.Chars` protocol
 
@@ -514,21 +514,21 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase "IN" filters: https://supabase.com/docs/reference/javascript/using-filters#in
   """
   @impl true
-  def within(%Builder{} = f, column, values)
+  def within(%Request{} = f, column, values)
       when is_binary(column) and is_list(values) do
     values =
       Enum.map_join(values, ",", fn v ->
         if String.match?(v, ~r/[,()]/), do: "#{to_string(v)}", else: to_string(v)
       end)
 
-    Builder.add_query_param(f, column, "in.(#{values})")
+    Request.with_query(f, %{column => "in.(#{values})"})
   end
 
   @doc """
   Only relevant for jsonb, array, and range columns. Match only rows where `column` contains every element appearing in `value`.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `values`: It can be a single value (string), a list of values to filter or a map (aka json)
 
@@ -539,30 +539,30 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase contains filter: https://supabase.com/docs/reference/javascript/using-filters#contains
   """
   @impl true
-  def contains(%Builder{} = b, column, value)
+  def contains(%Request{} = b, column, value)
       when is_binary(column) and is_binary(value) do
     do_contains(b, column, value)
   end
 
-  def contains(%Builder{} = b, column, values)
+  def contains(%Request{} = b, column, values)
       when is_binary(column) and is_list(values) do
     do_contains(b, column, "{#{Enum.join(values, ",")}}")
   end
 
-  def contains(%Builder{} = b, column, values)
+  def contains(%Request{} = b, column, values)
       when is_binary(column) and is_map(values) do
     do_contains(b, column, Jason.encode!(values))
   end
 
-  defp do_contains(%Builder{} = b, column, value) do
-    Builder.add_query_param(b, column, "cs.#{value}")
+  defp do_contains(%Request{} = b, column, value) do
+    Request.with_query(b, %{column => "cs.#{value}"})
   end
 
   @doc """
   Only relevant for jsonb, array, and range columns. Match only rows where every element appearing in `column` is contained by `value`.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `values`: It can be a single value (string), a list of values to filter or a map (aka json)
 
@@ -573,30 +573,30 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase contained by filter: https://supabase.com/docs/reference/javascript/using-filters#contained-by
   """
   @impl true
-  def contained_by(%Builder{} = b, column, value)
+  def contained_by(%Request{} = b, column, value)
       when is_binary(column) and is_binary(value) do
     do_contained_by(b, column, value)
   end
 
-  def contained_by(%Builder{} = b, column, values)
+  def contained_by(%Request{} = b, column, values)
       when is_binary(column) and is_list(values) do
     do_contained_by(b, column, "{#{Enum.join(values, ",")}}")
   end
 
-  def contained_by(%Builder{} = b, column, values)
+  def contained_by(%Request{} = b, column, values)
       when is_binary(column) and is_map(values) do
     do_contained_by(b, column, Jason.encode!(values))
   end
 
-  defp do_contained_by(%Builder{} = b, column, value) do
-    Builder.add_query_param(b, column, "cd.#{value}")
+  defp do_contained_by(%Request{} = b, column, value) do
+    Request.with_query(b, %{column => "cd.#{value}"})
   end
 
   @doc """
   Only relevant for range columns. Match only rows where every element in `column` is less than any element in `range`.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `value`: The upper bound value of the range, must implement the `String.Chars` protocol
 
@@ -607,15 +607,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase range filters: https://supabase.com/docs/reference/javascript/using-filters#range
   """
   @impl true
-  def range_lt(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "sl.#{value}")
+  def range_lt(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "sl.#{value}"})
   end
 
   @doc """
   Only relevant for range columns. Match only rows where every element in `column` is greater than any element in `range`.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The Request instance.
   - `column`: The column to apply the filter.
   - `value`: The lower bound value of the range, must implement the `String.Chars` protocol
 
@@ -626,15 +626,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - More on range filters at Supabase: https://supabase.com/docs/reference/javascript/using-filters#range
   """
   @impl true
-  def range_gt(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "sr.#{value}")
+  def range_gt(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "sr.#{value}"})
   end
 
   @doc """
   Only relevant for range columns. Match only rows where every element in `column` is either contained in `range` or greater than any element in `range`.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The Request instance.
   - `column`: The column to apply the filter.
   - `value`: The starting value of the range, must implement the `String.Chars` protocol
 
@@ -645,15 +645,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase documentation on range filters: https://supabase.com/docs/reference/javascript/using-filters#range
   """
   @impl true
-  def range_gte(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "nxl.#{value}")
+  def range_gte(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "nxl.#{value}"})
   end
 
   @doc """
   Only relevant for range columns. Match only rows where every element in `column` is either contained in `range` or less than any element in `range`.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The Request instance.
   - `column`: The column to apply the filter.
   - `value`: The ending value of the range, must implement the `String.Chars` protocol
 
@@ -664,15 +664,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase guide on using range filters: https://supabase.com/docs/reference/javascript/using-filters#range
   """
   @impl true
-  def range_lte(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "nxr.#{value}")
+  def range_lte(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "nxr.#{value}"})
   end
 
   @doc """
   Only relevant for range columns. Match only rows where `column` is mutually exclusive to `range` and there can be no element between the two ranges.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `value`: The adjacent range value, must implement the `String.Chars` protocol
 
@@ -683,15 +683,15 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase adjacent range filters: https://supabase.com/docs/reference/javascript/using-filters#adjacent
   """
   @impl true
-  def range_adjacent(%Builder{} = f, column, value) when is_binary(column) do
-    Builder.add_query_param(f, column, "adj.#{value}")
+  def range_adjacent(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "adj.#{value}"})
   end
 
   @doc """
   Only relevant for array and range columns. Match only rows where `column` and `value` have an element in common.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to apply the filter.
   - `values`: The array of values that must overlap with the column's value, all elements must implement the `String.Chars` protocol
 
@@ -702,23 +702,23 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase overlaps filter: https://supabase.com/docs/reference/javascript/using-filters#overlaps
   """
   @impl true
-  def overlaps(%Builder{} = b, column, value)
+  def overlaps(%Request{} = b, column, value)
       when is_binary(column) and is_binary(value) do
-    Builder.add_query_param(b, column, "ov.#{value}")
+    Request.with_query(b, %{column => "ov.#{value}"})
   end
 
-  def overlaps(%Builder{} = b, column, values)
+  def overlaps(%Request{} = b, column, values)
       when is_binary(column) and is_list(values) do
     values
     |> Enum.join(",")
-    |> then(&Builder.add_query_param(b, column, "ov.{#{&1}}"))
+    |> then(&Request.with_query(b, %{column => "ov.{#{&1}}"}))
   end
 
   @doc """
   Only relevant for text and tsvector columns. Match only rows where `column` matches the query string in `query`.
 
   ## Parameters
-  - `builder`: The Builder instance.
+  - `builder`: The `Supabase.Fetcher.Request` instance.
   - `column`: The column to search.
   - `query`: The text query for the search.
   - `opts`: Options for the search, such as type of search (`:plain`, `:phrase`, or `:websearch`) and configuration.
@@ -730,11 +730,11 @@ defmodule Supabase.PostgREST.FilterBuilder do
   - Supabase full-text search capabilities: https://supabase.com/docs/reference/javascript/using-filters#full-text-search
   """
   @impl true
-  def text_search(%Builder{} = f, column, query, opts \\ []) when is_binary(column) do
+  def text_search(%Request{} = f, column, query, opts \\ []) when is_binary(column) do
     type = search_type_to_code(Keyword.get(opts, :type))
     config = if config = Keyword.get(opts, :config), do: "(#{config})", else: ""
 
-    Builder.add_query_param(f, column, "#{type}fts#{config}.#{query}")
+    Request.with_query(f, %{column => "#{type}fts#{config}.#{query}"})
   end
 
   defp search_type_to_code(:plain), do: "pl"

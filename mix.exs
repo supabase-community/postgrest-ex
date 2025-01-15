@@ -13,7 +13,8 @@ defmodule PostgREST.MixProject do
       package: package(),
       docs: docs(),
       description: description(),
-      source_url: @source_url
+      source_url: @source_url,
+      dialyzer: [plt_local_path: "priv/plts", ignore_warnings: ".dialyzerignore"]
     ]
   end
 
@@ -27,10 +28,10 @@ defmodule PostgREST.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:supabase_potion, "~> 0.4"},
-      {:ex_doc, ">= 0.0.0", runtime: false},
+      {:supabase_potion, "~> 0.6"},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.3", only: [:dev], runtime: false}
+      {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false}
     ]
   end
 
