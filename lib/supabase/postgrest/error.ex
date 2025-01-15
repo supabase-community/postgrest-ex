@@ -3,11 +3,12 @@ defmodule Supabase.PostgREST.Error do
 
   alias Supabase.Fetcher.Request
   alias Supabase.Fetcher.Response
+  alias Supabase.HTTPErrorParser
 
   @behaviour Supabase.Error
 
   @impl true
-  def from(%Response{body: body}, %Request{} = ctx) do
+  def from(%Response{body: body}, %Request{} = ctx) when is_map(body) do
     metadata = Supabase.Error.make_default_http_metadata(ctx)
 
     metadata =
@@ -23,5 +24,9 @@ defmodule Supabase.PostgREST.Error do
       service: :database,
       metadata: metadata
     )
+  end
+
+  def from(%Response{} = resp, %Request{} = ctx) do
+    HTTPErrorParser.from(resp, ctx)
   end
 end

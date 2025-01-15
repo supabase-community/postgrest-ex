@@ -11,7 +11,9 @@ defmodule Supabase.PostgREST do
 
   alias Supabase.Client
   alias Supabase.Fetcher
+  alias Supabase.Fetcher.JSONDecoder
   alias Supabase.Fetcher.Request
+  alias Supabase.Fetcher.Response
   alias Supabase.PostgREST.Error
 
   alias Supabase.PostgREST.FilterBuilder
@@ -188,4 +190,83 @@ defmodule Supabase.PostgREST do
     |> Request.with_headers(schema_header)
     |> Fetcher.request()
   end
+
+  @doc """
+  Perform a function call.
+
+  This function returns a `Supabase.Fetcher.Request` builder that can be safely
+  pipelined to `Supabase.PostgREST.FilterBuilder` functions.
+
+  ## Params
+
+  - `client`: The `Supabase.Client` to perform the function call.
+  - `fn`: The function name to call.
+  - `args`: The arguments to pass to the function call as a map.
+  - `options`: Named parameters:
+    - `options.head`: When set to `true`, `data` will not be returned. Useful if you only need the count.
+    - `options.get`: When set to `true`, the function will be called with read-only access mode.
+    - `options.count`: Count algorithm to use to count rows returned by the function. Only applicable for [set-returning functions](https://www.postgresql.org/docs/current/functions-srf.html).
+      * `"exact"`: Exact but slow count algorithm. Performs a `COUNT(*)` under the hood.
+      * `"planned"`: Approximated but fast count algorithm. Uses the Postgres statistics under the hood.
+      * `"estimated"`: Uses exact count for low numbers and planned count for high numbers.
+  """
+  @impl true
+  def rpc(client, function, args \\ %{}, opts \\ [])
+
+  def rpc(%Client{} = client, function, %{} = args, opts) when is_binary(function) do
+    head? = opts[:head] || false
+    get? = opts[:get] || false
+    count = opts[:count]
+
+    client
+    |> Request.new()
+    |> Request.with_body_decoder(&decode_only_error/2)
+    |> Request.with_error_parser(Error)
+    |> Request.with_database_url("rpc/#{function}")
+    |> maybe_append_body(head? or get?, args)
+    |> maybe_change_method(head: head?, get: get?)
+    |> maybe_append_rpc_query(args)
+    |> maybe_append_count_header(count)
+  end
+
+  defp decode_only_error(%Response{} = resp, _opts) do
+    with {:error, _} <- JSONDecoder.decode(resp, keys: :atoms) do
+      {:ok, resp.body}
+    end
+  end
+
+  defp maybe_append_body(%Request{} = b, true, _), do: b
+
+  defp maybe_append_body(%Request{} = b, false, %{} = args) do
+    Request.with_body(b, args) |> Request.with_method(:post)
+  end
+
+  defp maybe_change_method(%Request{} = b, head: false, get: true) do
+    Request.with_method(b, :get)
+  end
+
+  defp maybe_change_method(%Request{} = b, head: true, get: false) do
+    Request.with_method(b, :head)
+  end
+
+  defp maybe_change_method(%Request{} = b, head: false, get: false), do: b
+
+  defp maybe_append_rpc_query(%Request{method: method} = b, %{} = args)
+       when method in [:head, :get] do
+    Enum.reject(args, fn {_k, v} -> is_nil(v) end)
+    |> Enum.map(fn
+      {k, v} when is_list(v) -> {to_string(k), "{#{Enum.join(v, ",")}}"}
+      {k, v} -> {to_string(k), v}
+    end)
+    |> then(&Request.with_query(b, &1))
+  end
+
+  defp maybe_append_rpc_query(%Request{} = b, _), do: b
+
+  defp maybe_append_count_header(%Request{} = b, count)
+       when count in [:exact, :planned, :estimated] do
+    Request.with_headers(b, %{"prefer" => "count=#{to_string(count)}"})
+  end
+
+  defp maybe_append_count_header(%Request{} = b, _), do: b
 end

@@ -14,4 +14,9 @@ defmodule Supabase.PostgREST.Behaviour do
   @callback execute(Request.t()) :: Supabase.result(term)
   @callback execute_to(Request.t(), module) :: Supabase.result(term)
   @callback execute_to_finch_request(Request.t()) :: Finch.Request.t()
+
+  @callback rpc(Client.t(), function_name, arguments, options) :: Request.t()
+            when function_name: String.t(),
+                 arguments: map,
+                 options: list({:head | :get, boolean} | {:count, :exact | :planned | :estimated})
 end
