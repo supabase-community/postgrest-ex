@@ -251,13 +251,14 @@ defmodule Supabase.PostgREST.TransformBuilder do
   https://supabase.com/docs/reference/javascript/db-modifiers-select
   """
   @impl true
-  def returning(%Request{} = b) do
+  def returning(builder, columns \\ [])
+
+  def returning(%Request{} = b, []) do
     b
     |> Request.with_query(%{"select" => "*"})
     |> Request.merge_req_header("prefer", "return=representation")
   end
 
-  @impl true
   def returning(%Request{} = b, columns) when is_list(columns) do
     cols =
       Enum.map_join(columns, ",", fn c ->
