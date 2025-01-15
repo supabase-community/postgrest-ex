@@ -14,8 +14,6 @@ defmodule Supabase.PostgREST.Behaviour do
   @callback schema(Builder.t(), schema :: String.t()) :: Builder.t()
 
   @callback execute(Builder.t() | Builder.t()) :: {:ok, term} | {:error, Error.t()}
-  @callback execute_string(Builder.t() | Builder.t()) ::
-              {:ok, binary} | {:error, Error.t() | atom}
   @callback execute_to(Builder.t() | Builder.t(), atom) ::
               {:ok, term} | {:error, Error.t() | atom}
   @callback execute_to_finch_request(Builder.t() | Builder.t()) ::
