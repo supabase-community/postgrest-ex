@@ -13,7 +13,8 @@ defmodule PostgREST.MixProject do
       package: package(),
       docs: docs(),
       description: description(),
-      source_url: @source_url
+      source_url: @source_url,
+      dialyzer: [plt_local_path: "priv/plts", ignore_warnings: ".dialyzerignore"]
     ]
   end
 

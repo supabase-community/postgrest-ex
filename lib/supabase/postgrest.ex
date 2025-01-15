@@ -150,7 +150,9 @@ defmodule Supabase.PostgREST do
   @impl true
   def execute_to(%Request{} = b, schema) when is_atom(schema) do
     alias Supabase.PostgREST.SchemaDecoder
+
     Request.with_body_decoder(b, SchemaDecoder, schema: schema)
+    |> do_execute()
   end
 
   @doc """

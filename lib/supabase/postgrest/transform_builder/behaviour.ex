@@ -1,7 +1,7 @@
 defmodule Supabase.PostgREST.TransformBuilder.Behaviour do
   @moduledoc "Defines the interface for the TransformBuilder module"
 
-  alias Supabase.Fetcher
+  alias Supabase.Fetcher.Request
 
   @type order_options :: [
           asc: boolean | nil,
@@ -9,22 +9,22 @@ defmodule Supabase.PostgREST.TransformBuilder.Behaviour do
           foreign_table: String.t() | nil
         ]
 
-  @callback limit(Fetcher.t(), count :: integer) :: Fetcher.t()
-  @callback limit(Fetcher.t(), count :: integer, foreign_table: String.t()) ::
-              Fetcher.t()
-  @callback single(Fetcher.t()) :: Fetcher.t()
-  @callback maybe_single(Fetcher.t()) :: Fetcher.t()
-  @callback order(Fetcher.t(), column :: String.t(), order_options) :: Fetcher.t()
-  @callback order(Fetcher.t(), column :: String.t(), order_options) :: Fetcher.t()
-  @callback range(Fetcher.t(), from :: integer, to :: integer) :: Fetcher.t()
-  @callback range(Fetcher.t(), from :: integer, to :: integer, foreign_table: String.t()) ::
-              Fetcher.t()
-  @callback rollback(Fetcher.t()) :: Fetcher.t()
-  @callback returning(Fetcher.t()) :: Fetcher.t()
-  @callback returning(Fetcher.t(), list(String.t()) | String.t()) :: Fetcher.t()
-  @callback csv(Fetcher.t()) :: Fetcher.t()
-  @callback geojson(Fetcher.t()) :: Fetcher.t()
-  @callback explain(Fetcher.t(), options :: explain) :: Fetcher.t()
+  @callback limit(Request.t(), count :: integer) :: Request.t()
+  @callback limit(Request.t(), count :: integer, foreign_table: String.t()) ::
+              Request.t()
+  @callback single(Request.t()) :: Request.t()
+  @callback maybe_single(Request.t()) :: Request.t()
+  @callback order(Request.t(), column :: String.t(), order_options) :: Request.t()
+  @callback order(Request.t(), column :: String.t(), order_options) :: Request.t()
+  @callback range(Request.t(), from :: integer, to :: integer) :: Request.t()
+  @callback range(Request.t(), from :: integer, to :: integer, foreign_table: String.t()) ::
+              Request.t()
+  @callback rollback(Request.t()) :: Request.t()
+  @callback returning(Request.t()) :: Request.t()
+  @callback returning(Request.t(), list(String.t()) | String.t()) :: Request.t()
+  @callback csv(Request.t()) :: Request.t()
+  @callback geojson(Request.t()) :: Request.t()
+  @callback explain(Request.t(), options :: explain) :: Request.t()
             when explain: list({opt, boolean} | {:format, :json | :text}),
                  opt: :analyze | :verbose | :settings | :buffers | :wal
 end
