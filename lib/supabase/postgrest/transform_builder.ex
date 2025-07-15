@@ -6,6 +6,7 @@ defmodule Supabase.PostgREST.TransformBuilder do
   """
 
   alias Supabase.Fetcher.Request
+  alias Supabase.PostgREST.Helpers
 
   @behaviour Supabase.PostgREST.TransformBuilder.Behaviour
 
@@ -211,7 +212,8 @@ defmodule Supabase.PostgREST.TransformBuilder do
 
     # postgrest-ex sends always only one Accept header
     # and always sets a default (application/json)
-    for_mediatype = "for=#{b.headers["accept"]}"
+    accept_header = Helpers.get_header(b.headers, "accept") || "application/json"
+    for_mediatype = "for=#{accept_header}"
 
     plan = "application/vnd.pgrst.plan#{format};#{for_mediatype};#{opts}"
 
