@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/supabase-community/postgrest-ex/compare/v1.0.0...v1.0.1) (2025-07-15)
+
+
+### Bug Fixes
+
+* massive tests, fixed query param and filter minor bugs ([#19](https://github.com/supabase-community/postgrest-ex/issues/19)) ([51b7747](https://github.com/supabase-community/postgrest-ex/commit/51b7747748480d9da614791f3d580baf088539cd))
+
 ## [1.0.0](https://github.com/supabase-community/postgrest-ex/compare/v1.0.0...v1.0.0) (2025-07-15)
 
 
