@@ -34,3 +34,5 @@ result
 .elixir-tools/
 .lexical/
 /priv/plts/
+
+/.claude/

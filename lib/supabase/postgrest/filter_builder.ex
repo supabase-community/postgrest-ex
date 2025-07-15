@@ -230,7 +230,20 @@ defmodule Supabase.PostgREST.FilterBuilder do
   end
 
   def process_condition({op, column, value}) when is_filter_op(op) do
-    Enum.join([column, op, value], ".")
+    formatted_value =
+      case {op, value} do
+        {:in, values} when is_list(values) -> "(#{Enum.join(values, ",")})"
+        {:is, nil} -> "null"
+        {_, values} when is_list(values) -> "[#{Enum.join(values, ",")}]"
+        {_, v} -> v
+      end
+
+    Enum.join([column, op, formatted_value], ".")
+  end
+
+  # Handle between operator separately
+  def process_condition({:between, column, [from, to]}) do
+    "#{column}.between.[#{from},#{to}]"
   end
 
   @doc """

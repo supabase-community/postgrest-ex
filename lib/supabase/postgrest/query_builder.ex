@@ -76,18 +76,24 @@ defmodule Supabase.PostgREST.QueryBuilder do
   @impl true
   def insert(%Request{} = b, data, opts \\ []) when is_map(data) do
     on_conflict = Keyword.get(opts, :on_conflict)
-    on_conflict = if on_conflict, do: "on_conflict=#{on_conflict}"
+    on_conflict_header = if on_conflict, do: "on_conflict=#{on_conflict}"
     upsert = if on_conflict, do: "resolution=merge-duplicates"
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
-    prefer = ["return=#{returning}", "count=#{count}", on_conflict, upsert]
+    prefer = ["return=#{returning}", "count=#{count}", on_conflict_header, upsert]
     prefer = Enum.join(Enum.reject(prefer, &is_nil/1), ",")
 
     b
     |> Request.with_method(:post)
     |> Request.with_headers(%{"prefer" => prefer})
-    |> Request.with_query(%{"on_conflict" => on_conflict})
+    |> maybe_add_conflict_query(on_conflict)
     |> Request.with_body(data)
+  end
+
+  defp maybe_add_conflict_query(request, nil), do: request
+
+  defp maybe_add_conflict_query(request, on_conflict) do
+    Request.with_query(request, %{"on_conflict" => on_conflict})
   end
 
   @doc """
@@ -107,16 +113,23 @@ defmodule Supabase.PostgREST.QueryBuilder do
   @impl true
   def upsert(%Request{} = b, data, opts \\ []) when is_map(data) do
     on_conflict = Keyword.get(opts, :on_conflict)
+    on_conflict_header = if on_conflict, do: "on_conflict=#{on_conflict}"
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
 
-    prefer =
-      Enum.join(["resolution=merge-duplicates", "return=#{returning}", "count=#{count}"], ",")
+    prefer_parts = [
+      "resolution=merge-duplicates",
+      "return=#{returning}",
+      "count=#{count}",
+      on_conflict_header
+    ]
+
+    prefer = Enum.join(Enum.reject(prefer_parts, &is_nil/1), ",")
 
     b
     |> Request.with_method(:post)
     |> Request.with_headers(%{"prefer" => prefer})
-    |> Request.with_query(%{"on_conflict" => on_conflict})
+    |> maybe_add_conflict_query(on_conflict)
     |> Request.with_body(data)
   end
 

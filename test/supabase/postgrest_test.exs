@@ -95,7 +95,7 @@ defmodule Supabase.PostgRESTTest do
       assert result.method == :post
 
       assert get_header(result, "prefer") ==
-               "resolution=merge-duplicates,return=representation,count=exact"
+               "resolution=merge-duplicates,return=representation,count=exact,on_conflict=name"
     end
   end
 
