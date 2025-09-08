@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/supabase-community/postgrest-ex/compare/v1.0.1...v1.1.0) (2025-09-08)
+
+
+### Features
+
+* support aggregation function helpers ([#22](https://github.com/supabase-community/postgrest-ex/issues/22)) ([a9766ec](https://github.com/supabase-community/postgrest-ex/commit/a9766ec7da2ee9a87ac4072d9e810ab1dcd5c93f))
+
 ## [1.0.1](https://github.com/supabase-community/postgrest-ex/compare/v1.0.0...v1.0.1) (2025-07-15)
 
 
