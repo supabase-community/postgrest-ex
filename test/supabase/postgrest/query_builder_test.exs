@@ -260,4 +260,27 @@ defmodule Supabase.PostgREST.QueryBuilderTest do
       assert is_list(body)
     end
   end
+
+  describe "select with aggregations" do
+    test "it should support single column with aggregation", %{request: req} do
+      result = QueryBuilder.select(req, [QueryBuilder.sum("amount")])
+      assert {"select", "amount.sum()"} = List.keyfind(result.query, "select", 0)
+    end
+
+    test "it should support multiple different column with aggregation", %{request: req} do
+      result = QueryBuilder.select(req, [QueryBuilder.sum("amount"), QueryBuilder.avg("sales")])
+      assert {"select", "amount.sum(),sales.avg()"} = List.keyfind(result.query, "select", 0)
+    end
+
+    test "it should support multiple column with aggregation", %{request: req} do
+      result =
+        QueryBuilder.select(req, [
+          QueryBuilder.sum("amount", as: "total_amount"),
+          QueryBuilder.avg("amount", as: "avg_amount")
+        ])
+
+      assert {"select", "total_amount:amount.sum(),avg_amount:amount.avg()"} =
+               List.keyfind(result.query, "select", 0)
+    end
+  end
 end

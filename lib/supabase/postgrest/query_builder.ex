@@ -182,4 +182,39 @@ defmodule Supabase.PostgREST.QueryBuilder do
     |> Request.with_headers(%{"prefer" => prefer})
     |> Request.with_body(data)
   end
+
+  # aggregation helpers
+
+  defguardp is_column(c) when is_binary(c) or is_atom(c)
+
+  @aggregators [:sum, :avg, :min, :max, :count]
+
+  for agg <- @aggregators do
+    @doc """
+    Hleper function to apply aggregation of #{agg} function to a specified
+    column name. This should be used on `select/3`.
+
+    ## Parameters
+    - `column`: The `Supabase.Fetcher.Request` to use.
+    - `opts.as`: If specifying more than one aggregate function for the same column, you may need to rename it, so you can pass an optional `:as` value for it.
+
+    ## Examples
+        iex> alias Supabase.PostgREST, as: Q
+        iex> Q.select(builder, [Q.avg("amount")])
+
+        iex> alias Supabase.PostgREST, as: Q
+        iex> Q.select(builder, [Q.avg("amount", as: "avg_amount"), Q.sum("amount", as: "total_amount")])
+
+    ## See also
+    - PostgREST official docs about aggregation functions: https://docs.postgrest.org/en/stable/references/api/aggregate_functions.html
+    """
+    @impl true
+    def unquote(agg)(column, opts \\ []) when is_column(column) do
+      if as = Keyword.get(opts, :as) do
+        "#{as}:#{column}.#{to_string(unquote(agg))}()"
+      else
+        "#{column}.#{to_string(unquote(agg))}()"
+      end
+    end
+  end
 end
