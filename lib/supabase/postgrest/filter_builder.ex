@@ -564,7 +564,8 @@ defmodule Supabase.PostgREST.FilterBuilder do
 
   def contains(%Request{} = b, column, values)
       when is_binary(column) and is_map(values) do
-    do_contains(b, column, Jason.encode!(values))
+    json = Supabase.json_library()
+    do_contains(b, column, json.encode!(values))
   end
 
   defp do_contains(%Request{} = b, column, value) do
@@ -598,7 +599,8 @@ defmodule Supabase.PostgREST.FilterBuilder do
 
   def contained_by(%Request{} = b, column, values)
       when is_binary(column) and is_map(values) do
-    do_contained_by(b, column, Jason.encode!(values))
+    json = Supabase.json_library()
+    do_contained_by(b, column, json.encode!(values))
   end
 
   defp do_contained_by(%Request{} = b, column, value) do

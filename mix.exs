@@ -25,10 +25,18 @@ defmodule PostgREST.MixProject do
     ]
   end
 
+  defp supabase_dep do
+    if Mix.env() == :dev do
+      {:supabase_potion, path: "../supabase-ex"}
+    else
+      {:supabase_potion, "~> 0.6"}
+    end
+  end
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:supabase_potion, "~> 0.6"},
+      supabase_dep(),
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false}
