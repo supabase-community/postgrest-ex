@@ -73,7 +73,6 @@ defmodule Supabase.PostgREST.Parser do
 
   defp parse_table_cols(rest) do
     {cols_tokens, rest} = Enum.split_while(rest, &(&1 != ";"))
-    # [")" | rest] = rest
 
     cols =
       cols_tokens
@@ -126,31 +125,37 @@ defmodule Supabase.PostgREST.Parser do
 
   defp parse_column_attrs([type | rest], acc) do
     cond do
-      String.starts_with?(type, "character") or String.starts_with?(type, "varchar") ->
-        parse_column_attrs(rest, [{:type, "text"} | acc])
+      type in ["integer", "bigint", "smallint", "serial", "bigserial"] ->
+        parse_column_attrs(rest, [{:type, "integer"} | acc])
 
-      type in [
-        "integer",
-        "bigint",
-        "smallint",
-        "serial",
-        "bigserial",
-        "boolean",
-        "date",
-        "timestamp",
-        "timestamptz",
-        "time",
-        "timetz",
-        "interval",
-        "uuid",
-        "json",
-        "jsonb",
-        "bytea",
-        "real",
-        "double",
-        "numeric",
-        "decimal"
-      ] ->
+      type in ["real", "double"] ->
+        parse_column_attrs(rest, [{:type, "float"} | acc])
+
+      type in ["json", "jsonb"] ->
+        parse_column_attrs(rest, [{:type, "map"} | acc])
+
+      type == "interval" ->
+        parse_column_attrs(rest, [{:type, "duration"} | acc])
+
+      type == "timestamp" ->
+        parse_column_attrs(rest, [{:type, "naive_datetime"} | acc])
+
+      type == "timestampz" ->
+        parse_column_attrs(rest, [{:type, "utc_datetime"} | acc])
+
+      type == "timez" ->
+        parse_column_attrs(rest, [{:type, "time_usec"} | acc])
+
+      type == "uuid" ->
+        parse_column_attrs(rest, [{:type, "binary_id"} | acc])
+
+      type == "bytea" ->
+        parse_column_attrs(rest, [{:type, "binary"} | acc])
+
+      type in ["numeric", "decimal"] ->
+        parse_column_attrs(rest, [{:type, "decimal"} | acc])
+
+      type in ["boolean", "date", "time"] ->
         parse_column_attrs(rest, [{:type, type} | acc])
 
       true ->
