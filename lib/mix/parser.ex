@@ -28,7 +28,8 @@ defmodule Supabase.PostgREST.Parser do
     input = split_input(input)
 
     with {:ok, ast} <- parse(input, []) do
-      {:ok, Enum.reverse(ast)}
+      reversed_ast = Enum.reverse(ast)
+      {:ok, apply_primary_keys(reversed_ast)}
     end
   end
 
@@ -50,6 +51,10 @@ defmodule Supabase.PostgREST.Parser do
 
   defp parse(["create", "policy" | rest], ast) do
     parse_policy(rest, ast)
+  end
+
+  defp parse(["alter", "table" | rest], ast) do
+    parse_alter_table(rest, ast)
   end
 
   defp parse([_ | rest], ast), do: parse(rest, ast)
@@ -223,5 +228,63 @@ defmodule Supabase.PostgREST.Parser do
 
   defp parse_expression([token | rest], acc) do
     parse_expression(rest, [token | acc])
+  end
+
+  # Parse ALTER TABLE statements for PRIMARY KEY constraints
+  defp parse_alter_table(["only" | rest], ast) do
+    parse_alter_table(rest, ast)
+  end
+
+  defp parse_alter_table([table_name | rest], ast) do
+    case rest do
+      ["add", "constraint", _name, "primary", "key", "(" | rest] ->
+        {column, rest} = extract_column_name(rest)
+        table = parse_table_identifier(table_name)
+        parse(rest, [{:pk, table, column} | ast])
+
+      _ ->
+        skip_to_semicolon(rest, ast)
+    end
+  end
+
+  defp parse_table_identifier(name) do
+    case String.split(name, ".") do
+      [name] -> name
+      [schema, name] -> {schema, name}
+    end
+  end
+
+  defp extract_column_name([")" | rest]), do: {nil, rest}
+  defp extract_column_name([col, ")" | rest]), do: {col, rest}
+  defp extract_column_name([_col | rest]), do: extract_column_name(rest)
+
+  defp skip_to_semicolon([";" | rest], ast), do: parse(rest, ast)
+  defp skip_to_semicolon([_ | rest], ast), do: skip_to_semicolon(rest, ast)
+  defp skip_to_semicolon([], ast), do: parse([], ast)
+
+  # Apply primary key constraints to tables
+  defp apply_primary_keys(ast) do
+    ast
+    |> Enum.reduce([], &inject_primary_keys/2)
+    |> Enum.reverse()
+  end
+
+  defp inject_primary_keys({:pk, table, column}, acc) do
+    Enum.map(acc, &update_table_primary_key(&1, table, column))
+  end
+
+  defp inject_primary_keys(item, acc), do: [item | acc]
+
+  defp update_table_primary_key({table, columns}, table, column) when is_list(columns) do
+    {table, mark_column_as_primary(columns, column)}
+  end
+
+  defp update_table_primary_key(other, _table, _column), do: other
+
+  defp mark_column_as_primary(columns, primary_column) do
+    Enum.map(columns, fn
+      {^primary_column, attrs} -> {primary_column, [{:primary, true} | attrs]}
+      other -> other
+    end)
   end
 end

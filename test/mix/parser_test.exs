@@ -339,5 +339,113 @@ defmodule Supabase.PostgREST.ParserTest do
 
       assert {:ok, []} = Parser.run(input)
     end
+
+    test "parses ALTER TABLE ADD CONSTRAINT PRIMARY KEY" do
+      input = """
+      CREATE TABLE IF NOT EXISTS "public"."users" (
+          "id" uuid NOT NULL,
+          "email" text NOT NULL
+      );
+
+      ALTER TABLE ONLY "public"."users"
+          ADD CONSTRAINT "users_pkey" PRIMARY KEY ("id");
+      """
+
+      assert {:ok, [{{"public", "users"}, cols}]} = Parser.run(input)
+      assert length(cols) == 2
+
+      assert {"id", id_attrs} = Enum.at(cols, 0)
+      assert {:primary, true} in id_attrs
+      assert {:type, "binary_id"} in id_attrs
+      assert {:null, false} in id_attrs
+    end
+
+    test "parses multiple tables with primary keys from ALTER TABLE" do
+      input = """
+      CREATE TABLE IF NOT EXISTS "public"."distributors" (
+          "did" integer NOT NULL,
+          "name" character varying(40) NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS "public"."films" (
+          "id" integer NOT NULL,
+          "title" text NOT NULL
+      );
+
+      ALTER TABLE ONLY "public"."distributors"
+          ADD CONSTRAINT "distributors_pkey" PRIMARY KEY ("did");
+
+      ALTER TABLE ONLY "public"."films"
+          ADD CONSTRAINT "films_pkey" PRIMARY KEY ("id");
+      """
+
+      assert {:ok, tables} = Parser.run(input)
+      assert length(tables) == 2
+
+      # Check distributors table
+      assert {{"public", "distributors"}, dist_cols} = Enum.at(tables, 0)
+      assert {"did", did_attrs} = Enum.find(dist_cols, fn {name, _} -> name == "did" end)
+      assert {:primary, true} in did_attrs
+
+      # Check films table
+      assert {{"public", "films"}, film_cols} = Enum.at(tables, 1)
+      assert {"id", id_attrs} = Enum.find(film_cols, fn {name, _} -> name == "id" end)
+      assert {:primary, true} in id_attrs
+    end
+
+    test "parses table without ALTER TABLE primary key" do
+      input = """
+      CREATE TABLE IF NOT EXISTS "public"."users" (
+          "id" uuid NOT NULL,
+          "email" text NOT NULL
+      );
+      """
+
+      assert {:ok, [{{"public", "users"}, cols}]} = Parser.run(input)
+      assert length(cols) == 2
+
+      # id should NOT have primary flag
+      assert {"id", id_attrs} = Enum.at(cols, 0)
+      refute {:primary, true} in id_attrs
+    end
+
+    test "parses inline PRIMARY KEY constraint" do
+      input = """
+      CREATE TABLE IF NOT EXISTS "public"."users" (
+          "id" uuid PRIMARY KEY,
+          "email" text NOT NULL
+      );
+      """
+
+      assert {:ok, [{{"public", "users"}, cols}]} = Parser.run(input)
+      assert length(cols) == 2
+
+      assert {"id", id_attrs} = Enum.at(cols, 0)
+      assert {:primary, true} in id_attrs
+    end
+
+    test "parses real dump.sql structure" do
+      input = """
+      CREATE TABLE IF NOT EXISTS "public"."distributors" (
+          "did" integer NOT NULL,
+          "name" character varying(40) NOT NULL,
+          "film_id" integer,
+          CONSTRAINT "distributors_name_check" CHECK ((("name")::"text" <> ''::"text"))
+      );
+
+      ALTER TABLE "public"."distributors" OWNER TO "postgres";
+
+      ALTER TABLE ONLY "public"."distributors"
+          ADD CONSTRAINT "distributors_pkey" PRIMARY KEY ("did");
+      """
+
+      assert {:ok, [{{"public", "distributors"}, cols}]} = Parser.run(input)
+      assert length(cols) == 3
+
+      assert {"did", did_attrs} = Enum.find(cols, fn {name, _} -> name == "did" end)
+      assert {:primary, true} in did_attrs
+      assert {:type, "integer"} in did_attrs
+      assert {:null, false} in did_attrs
+    end
   end
 end
