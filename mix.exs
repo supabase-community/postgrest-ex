@@ -14,7 +14,11 @@ defmodule PostgREST.MixProject do
       docs: docs(),
       description: description(),
       source_url: @source_url,
-      dialyzer: [plt_local_path: "priv/plts", ignore_warnings: ".dialyzerignore"]
+      dialyzer: [
+        plt_local_path: "priv/plts",
+        ignore_warnings: ".dialyzerignore",
+        plt_add_apps: [:mix, :ex_unit]
+      ]
     ]
   end
 

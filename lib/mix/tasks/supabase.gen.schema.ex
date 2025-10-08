@@ -207,11 +207,11 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
             mix supabase.gen.schema #{context} -s public
         """)
 
-      {:error, :parse_failed, reason} ->
+      {:error, reason} ->
         Mix.raise("""
         Failed to parse database schema.
 
-        #{reason}
+        #{String.trim(reason)}
 
         This might be due to:
         - Unsupported DDL syntax
@@ -219,13 +219,6 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
 
         Please report this issue with the DDL output at:
         https://github.com/supabase-community/postgrest-ex/issues
-        """)
-
-      {:error, message} when is_binary(message) ->
-        Mix.raise("""
-        Error: #{String.trim(message)}
-
-        Run `supabase db dump --help` to see available options.
         """)
     end
   end
@@ -289,11 +282,7 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
 
   defp parse_ddl(ddl) do
     Mix.shell().info("Parsing DDL...")
-
-    case Parser.run(ddl) do
-      {:ok, ast} -> {:ok, ast}
-      {:error, reason} -> {:error, :parse_failed, inspect(reason)}
-    end
+    Parser.run(ddl)
   end
 
   defp validate_ast(ast) do
