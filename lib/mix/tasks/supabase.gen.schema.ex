@@ -249,33 +249,41 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
   end
 
   defp dump_schema(cli_args) do
+    with {:ok, executable} <- find_supabase_executable() do
+      run_supabase_dump(executable, cli_args)
+    end
+  end
+
+  defp find_supabase_executable do
     case System.find_executable("supabase") do
-      nil ->
-        {:error, :supabase_not_found}
+      nil -> {:error, :supabase_not_found}
+      executable -> {:ok, executable}
+    end
+  end
 
-      executable ->
-        args = ["db", "dump" | cli_args]
-        Mix.shell().info("Running: supabase #{Enum.join(args, " ")}")
-        Mix.shell().info("Dumping schema from Supabase...")
+  defp run_supabase_dump(executable, cli_args) do
+    args = ["db", "dump" | cli_args]
+    Mix.shell().info("Running: supabase #{Enum.join(args, " ")}")
+    Mix.shell().info("Dumping schema from Supabase...")
 
-        case System.cmd(executable, args, stderr_to_stdout: true) do
-          {output, 0} ->
-            {:ok, output}
+    case System.cmd(executable, args, stderr_to_stdout: true) do
+      {output, 0} -> {:ok, output}
+      {error_output, _} -> classify_dump_error(error_output)
+    end
+  end
 
-          {error_output, _exit_code} ->
-            cond do
-              String.contains?(error_output, "not linked") ->
-                {:error, :not_linked}
+  defp classify_dump_error(error_output) do
+    cond do
+      String.contains?(error_output, "not linked") ->
+        {:error, :not_linked}
 
-              String.contains?(error_output, "connection") or
-                String.contains?(error_output, "connect") or
-                  String.contains?(error_output, "refused") ->
-                {:error, :connection_failed, error_output}
+      String.contains?(error_output, "connection") or
+        String.contains?(error_output, "connect") or
+          String.contains?(error_output, "refused") ->
+        {:error, :connection_failed, error_output}
 
-              true ->
-                {:error, error_output}
-            end
-        end
+      true ->
+        {:error, error_output}
     end
   end
 
@@ -467,9 +475,7 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
   defp generate_fields([]), do: ""
 
   defp generate_fields(columns) do
-    columns
-    |> Enum.map(&format_field/1)
-    |> Enum.join("\n")
+    Enum.map_join(columns, "\n", &format_field/1)
   end
 
   defp format_field({name, attrs}) do
@@ -478,16 +484,13 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
   end
 
   defp generate_cast_fields(columns) do
-    columns
-    |> Enum.map(fn {name, _attrs} -> ":#{name}" end)
-    |> Enum.join(", ")
+    Enum.map_join(columns, ", ", fn {name, _attrs} -> ":#{name}" end)
   end
 
   defp generate_required_fields(columns) do
     columns
     |> Enum.reject(fn {_name, attrs} -> Keyword.get(attrs, :null, true) end)
-    |> Enum.map(fn {name, _attrs} -> ":#{name}" end)
-    |> Enum.join(", ")
+    |> Enum.map_join(", ", fn {name, _attrs} -> ":#{name}" end)
   end
 
   defp generate_unique_constraints(columns) do

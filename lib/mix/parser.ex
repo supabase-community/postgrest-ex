@@ -129,44 +129,38 @@ defmodule Supabase.PostgREST.Parser do
   end
 
   defp parse_column_attrs([type | rest], acc) do
-    cond do
-      type in ["integer", "bigint", "smallint", "serial", "bigserial"] ->
-        parse_column_attrs(rest, [{:type, "integer"} | acc])
-
-      type in ["real", "double"] ->
-        parse_column_attrs(rest, [{:type, "float"} | acc])
-
-      type in ["json", "jsonb"] ->
-        parse_column_attrs(rest, [{:type, "map"} | acc])
-
-      type == "interval" ->
-        parse_column_attrs(rest, [{:type, "duration"} | acc])
-
-      type == "timestamp" ->
-        parse_column_attrs(rest, [{:type, "naive_datetime"} | acc])
-
-      type == "timestampz" ->
-        parse_column_attrs(rest, [{:type, "utc_datetime"} | acc])
-
-      type == "timez" ->
-        parse_column_attrs(rest, [{:type, "time_usec"} | acc])
-
-      type == "uuid" ->
-        parse_column_attrs(rest, [{:type, "binary_id"} | acc])
-
-      type == "bytea" ->
-        parse_column_attrs(rest, [{:type, "binary"} | acc])
-
-      type in ["numeric", "decimal"] ->
-        parse_column_attrs(rest, [{:type, "decimal"} | acc])
-
-      type in ["boolean", "date", "time"] ->
-        parse_column_attrs(rest, [{:type, type} | acc])
-
-      true ->
-        parse_column_attrs(rest, acc)
+    case map_pg_type(type) do
+      nil -> parse_column_attrs(rest, acc)
+      ecto_type -> parse_column_attrs(rest, [{:type, ecto_type} | acc])
     end
   end
+
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
+  defp map_pg_type(type) do
+    cond do
+      int_type?(type) -> "integer"
+      float_type?(type) -> "float"
+      map_type?(type) -> "map"
+      type == "interval" -> "duration"
+      type == "timestamp" -> "naive_datetime"
+      type == "timestampz" -> "utc_datetime"
+      type == "timez" -> "time_usec"
+      type == "uuid" -> "binary_id"
+      type == "bytea" -> "binary"
+      decimal_type?(type) -> "decimal"
+      as_is_type?(type) -> type
+      true -> nil
+    end
+  end
+
+  defp int_type?(type) do
+    type in ["integer", "bigint", "smallint", "serial", "bigserial"]
+  end
+
+  defp as_is_type?(type), do: type in ["boolean", "date", "time"]
+  defp decimal_type?(type), do: type in ["numeric", "decimal"]
+  defp float_type?(type), do: type in ["real", "numeric"]
+  defp map_type?(type), do: type in ["json", "jsonb"]
 
   defp parse_policy([name | rest], ast) do
     {rest, opts} = parse_policy_opts(rest, [])
