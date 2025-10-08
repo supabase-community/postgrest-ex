@@ -197,6 +197,10 @@ defmodule Supabase.PostgREST.Parser do
     parse_policy_opts(rest, [{:with_check, expr} | acc])
   end
 
+  defp parse_policy_opts([";" | rest], acc) do
+    {rest, Enum.reverse(acc)}
+  end
+
   defp parse_policy_opts([_ | rest], acc) do
     parse_policy_opts(rest, acc)
   end

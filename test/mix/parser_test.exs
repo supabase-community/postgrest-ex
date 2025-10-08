@@ -171,6 +171,127 @@ defmodule Supabase.PostgREST.ParserTest do
       assert is_binary(using_expr)
     end
 
+    test "parses CREATE POLICY with WITH CHECK clause" do
+      input = """
+      CREATE POLICY "users_insert_policy" ON "public"."users"
+          FOR INSERT
+          TO authenticated
+          WITH CHECK (auth.uid() = id);
+      """
+
+      assert {:ok, [{"users_insert_policy", opts}]} = Parser.run(input)
+      assert {:on, {"public", "users"}} in opts
+      assert {:for, :insert} in opts
+      assert {:role, "authenticated"} in opts
+      assert {:with_check, check_expr} = List.keyfind(opts, :with_check, 0)
+      assert is_binary(check_expr)
+      assert check_expr =~ "auth.uid"
+    end
+
+    test "parses CREATE POLICY with both USING and WITH CHECK" do
+      input = """
+      CREATE POLICY "users_update_policy" ON "public"."users"
+          FOR UPDATE
+          TO authenticated
+          USING (auth.uid() = id)
+          WITH CHECK (auth.uid() = id);
+      """
+
+      assert {:ok, [{"users_update_policy", opts}]} = Parser.run(input)
+      assert {:on, {"public", "users"}} in opts
+      assert {:for, :update} in opts
+      assert {:role, "authenticated"} in opts
+      assert {:using, using_expr} = List.keyfind(opts, :using, 0)
+      assert {:with_check, check_expr} = List.keyfind(opts, :with_check, 0)
+      assert is_binary(using_expr)
+      assert is_binary(check_expr)
+    end
+
+    test "parses CREATE POLICY with RESTRICTIVE type" do
+      input = """
+      CREATE POLICY "admin_only" ON "public"."admin_table"
+          AS RESTRICTIVE FOR ALL
+          TO authenticated
+          USING (role = 'admin');
+      """
+
+      assert {:ok, [{"admin_only", opts}]} = Parser.run(input)
+      assert {:on, {"public", "admin_table"}} in opts
+      assert {:type, :restrictive} in opts
+      assert {:for, :all} in opts
+      assert {:role, "authenticated"} in opts
+    end
+
+    test "parses CREATE POLICY for DELETE action" do
+      input = """
+      CREATE POLICY "users_delete_policy" ON "public"."users"
+          FOR DELETE
+          TO authenticated
+          USING (auth.uid() = id);
+      """
+
+      assert {:ok, [{"users_delete_policy", opts}]} = Parser.run(input)
+      assert {:for, :delete} in opts
+    end
+
+    test "parses CREATE POLICY with table name without schema" do
+      input = """
+      CREATE POLICY "simple_policy" ON users
+          FOR SELECT
+          USING (true);
+      """
+
+      assert {:ok, [{"simple_policy", opts}]} = Parser.run(input)
+      assert {:on, "users"} in opts
+      assert {:for, :select} in opts
+    end
+
+    test "parses multiple CREATE POLICY statements" do
+      input = """
+      CREATE POLICY "policy_one" ON "public"."users"
+          FOR SELECT
+          USING (true);
+
+      CREATE POLICY "policy_two" ON "public"."posts"
+          FOR INSERT
+          WITH CHECK (author_id = auth.uid());
+      """
+
+      assert {:ok, policies} = Parser.run(input)
+      assert length(policies) == 2
+
+      assert [{"policy_one", opts1}, {"policy_two", opts2}] = policies
+      assert {:on, {"public", "users"}} in opts1
+      assert {:for, :select} in opts1
+
+      assert {:on, {"public", "posts"}} in opts2
+      assert {:for, :insert} in opts2
+    end
+
+    test "parses CREATE TABLE and CREATE POLICY together" do
+      input = """
+      CREATE TABLE IF NOT EXISTS "public"."users" (
+          "id" uuid PRIMARY KEY,
+          "email" text NOT NULL
+      );
+
+      CREATE POLICY "users_select_policy" ON "public"."users"
+          FOR SELECT
+          USING (auth.uid() = id);
+      """
+
+      assert {:ok, ast} = Parser.run(input)
+      assert length(ast) == 2
+
+      # First should be table
+      assert [{{"public", "users"}, cols}, {"users_select_policy", policy_opts}] = ast
+      assert length(cols) == 2
+
+      # Second should be policy
+      assert {:on, {"public", "users"}} in policy_opts
+      assert {:for, :select} in policy_opts
+    end
+
     test "parses mixed statements from real dump, extracting only CREATE TABLE" do
       input = """
       SET statement_timeout = 0;
