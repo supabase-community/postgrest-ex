@@ -14,6 +14,9 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
   which determines both the module namespace and output directory. All remaining
   arguments are passed directly to `supabase db dump`.
 
+  Generated files are automatically formatted using `mix format` with your
+  project's `.formatter.exs` configuration.
+
   ## Examples
 
   Generate schemas for Accounts context from auth schema:
@@ -32,6 +35,10 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
 
       $ mix supabase.gen.schema Admin --schema auth,public
 
+  Nested contexts:
+
+      $ mix supabase.gen.schema Accounts.Admin -s auth
+
   ## Output Structure
 
   Schemas are generated in the context directory:
@@ -39,6 +46,12 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
       lib/my_app/accounts/
         ├── user.ex        # MyApp.Accounts.User
         └── profile.ex     # MyApp.Accounts.Profile
+
+  Nested contexts create subdirectories:
+
+      lib/my_app/accounts/admin/
+        ├── user.ex        # MyApp.Accounts.Admin.User
+        └── session.ex     # MyApp.Accounts.Admin.Session
 
   ## Prerequisites
 
@@ -113,15 +126,8 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
   ## Supabase CLI Arguments
 
   All arguments after the context name are passed directly to `supabase db dump`.
-  Common options include:
 
-    * `--local` - Use local Supabase instance
-    * `--schema <name>` - Specify schema(s) to dump (comma-separated)
-    * `--data-only` - Dump only data, not schema
-    * `--db-url <url>` - Custom database URL
-    * `--password <pass>` - Database password
-
-  See `supabase db dump --help` for all available options.
+  For the complete list of options, follow the [official docs](https://supabase.com/docs/reference/cli/supabase-db-dump) or run `supabase db dump --help`
   """
 
   use Mix.Task
@@ -156,6 +162,7 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
          {:ok, ast} <- parse_ddl(ddl),
          :ok <- validate_ast(ast) do
       generate_schemas(ast, config)
+      format_generated_files(config)
     else
       {:error, :supabase_not_found} ->
         Mix.raise("""
@@ -306,12 +313,69 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
     Mix.shell().info("Generating #{length(tables)} schema(s)...")
     File.mkdir_p!(config.output_dir)
 
-    for table <- tables do
-      table_policies = filter_policies_for_table(policies, table)
-      generate_schema_file(table, table_policies, config)
-    end
+    {generated_count, _} =
+      Enum.reduce(tables, {0, false}, fn table, {count, overwrite_all} ->
+        table_policies = filter_policies_for_table(policies, table)
 
-    print_summary(tables, config)
+        case generate_schema_file(table, table_policies, config, overwrite_all) do
+          {:ok, new_overwrite_all} -> {count + 1, new_overwrite_all}
+          :skip -> {count, overwrite_all}
+        end
+      end)
+
+    print_summary(generated_count, tables, config)
+  end
+
+  defp prompt_for_overwrite(file_path) do
+    relative_path = Path.relative_to_cwd(file_path)
+
+    Mix.shell().info("")
+
+    answer =
+      "File #{relative_path} already exists. Overwrite? [Yn[all]] "
+      |> yellow_prompt()
+      |> IO.chardata_to_string()
+      |> Mix.shell().prompt()
+
+    case String.trim(answer) |> String.downcase() do
+      yes when yes in [" ", "y", "yes"] ->
+        :yes
+
+      no when no in ["n", "no"] ->
+        :no
+
+      all when all in ["a", "all"] ->
+        :all
+
+      _ ->
+        Mix.shell().info("Please answer Y (yes), n (no), or a (all)")
+        prompt_for_overwrite(file_path)
+    end
+  end
+
+  defp yellow_prompt(msg) do
+    IO.ANSI.format([:yellow, msg, :reset])
+  end
+
+  defp should_write_file?(file_path, overwrite_all) do
+    cond do
+      not File.exists?(file_path) ->
+        {:ok, overwrite_all}
+
+      overwrite_all ->
+        {:ok, true}
+
+      true ->
+        case prompt_for_overwrite(file_path) do
+          :yes -> {:ok, overwrite_all}
+          :all -> {:ok, true}
+          :no -> :skip
+        end
+    end
+  end
+
+  defp format_generated_files(config) do
+    Mix.Tasks.Format.run(["#{config.output_dir}/**/*.ex"])
   end
 
   defp extract_tables(ast) do
@@ -346,15 +410,25 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
   defp normalize_table_name({_schema, name}), do: name
   defp normalize_table_name(name), do: name
 
-  defp generate_schema_file({table_name, columns}, policies, config) do
+  defp generate_schema_file({table_name, columns}, policies, config, overwrite_all) do
     module_name = build_module_name(table_name, config)
     schema_name = normalize_table_name(table_name)
     file_path = build_file_path(schema_name, config)
 
-    content = generate_schema_content(module_name, schema_name, columns, policies)
+    case should_write_file?(file_path, overwrite_all) do
+      {:ok, new_overwrite_all} ->
+        exists? = File.exists?(file_path)
+        content = generate_schema_content(module_name, schema_name, columns, policies)
+        File.write!(file_path, content)
 
-    File.write!(file_path, content)
-    Mix.shell().info([:green, "* creating ", :reset, Path.relative_to_cwd(file_path)])
+        action = if exists?, do: "* overwriting ", else: "* creating "
+        Mix.shell().info([:green, action, :reset, Path.relative_to_cwd(file_path)])
+
+        {:ok, new_overwrite_all}
+
+      :skip ->
+        :skip
+    end
   end
 
   defp build_module_name(table_name, config) do
@@ -501,14 +575,14 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
   defp format_ecto_type("binary_id"), do: "Ecto.UUID"
   defp format_ecto_type(type), do: ":#{type}"
 
-  defp print_summary(tables, config) do
+  defp print_summary(generated_count, tables, config) do
     Mix.shell().info("")
 
     Mix.shell().info([
       :green,
       "✓ ",
       :reset,
-      "Generated #{length(tables)} schema(s) in #{config.output_dir}"
+      "Generated #{generated_count} schema(s) in #{config.output_dir}"
     ])
 
     Mix.shell().info("""
