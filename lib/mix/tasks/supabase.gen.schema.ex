@@ -375,7 +375,8 @@ defmodule Mix.Tasks.Supabase.Gen.Schema do
   end
 
   defp format_generated_files(config) do
-    Mix.Tasks.Format.run(["#{config.output_dir}/**/*.ex"])
+    alias Mix.Tasks.Format
+    Format.run(["#{config.output_dir}/**/*.ex"])
   end
 
   defp extract_tables(ast) do

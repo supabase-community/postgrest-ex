@@ -41,6 +41,7 @@ defmodule PostgREST.MixProject do
   defp deps do
     [
       supabase_dep(),
+      {:ecto_sql, "~> 3.13", optional: true},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false}
