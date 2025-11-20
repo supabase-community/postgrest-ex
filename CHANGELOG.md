@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/supabase-community/postgrest-ex/compare/v1.1.0...v1.2.0) (2025-11-20)
+
+
+### Features
+
+* supabase schema dump for ecto ([#26](https://github.com/supabase-community/postgrest-ex/issues/26)) ([24996cf](https://github.com/supabase-community/postgrest-ex/commit/24996cf45e0f8b22a04f8cee71417bf7adfaa2dd))
+
+
+### Bug Fixes
+
+* follow `json_library` option from main library ([#24](https://github.com/supabase-community/postgrest-ex/issues/24)) ([e3fd7a1](https://github.com/supabase-community/postgrest-ex/commit/e3fd7a191f42843d8633b8791acb3614742ebc84))
+
 ## [1.1.0](https://github.com/supabase-community/postgrest-ex/compare/v1.0.1...v1.1.0) (2025-09-08)
 
 
