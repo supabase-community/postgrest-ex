@@ -230,7 +230,7 @@ defmodule Supabase.PostgREST do
   end
 
   defp decode_only_error(%Response{} = resp, _opts) do
-    with {:error, _} <- JSONDecoder.decode(resp, keys: :atoms) do
+    with {:error, _} <- JSONDecoder.decode(resp) do
       {:ok, resp.body}
     end
   end

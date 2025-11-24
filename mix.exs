@@ -30,7 +30,7 @@ defmodule PostgREST.MixProject do
   end
 
   defp supabase_dep do
-    if Mix.env() == :dev do
+    if System.get_env("SUPABASE_LOCAL") == "1" do
       {:supabase_potion, path: "../supabase-ex"}
     else
       {:supabase_potion, "~> 0.6"}
