@@ -13,8 +13,8 @@ Add the following dependencies to your `mix.exs` file:
 ```elixir
 def deps do
   [
-    {:supabase_potion, "~> 0.6"},
-    {:supabase_postgrest, "~> 1.0"}
+    {:supabase_potion, "~> 0.7"},
+    {:supabase_postgrest, "~> 1.0.0"} # x-release-please-version
   ]
 end
 ```
