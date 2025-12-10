@@ -10,7 +10,7 @@ defmodule Supabase.PostgREST.SchemaDecoder do
   def decode(%Response{} = resp, opts \\ []) do
     schema = Keyword.fetch!(opts, :schema)
 
-    with {:ok, body} <- JSONDecoder.decode(resp, []) do
+    with {:ok, body} <- JSONDecoder.decode(resp) do
       body = atom_keys(body)
 
       cond do
