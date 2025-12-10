@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.1](https://github.com/supabase-community/postgrest-ex/compare/v1.2.0...v1.2.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* correctly handle json-library from mainstream library ([#28](https://github.com/supabase-community/postgrest-ex/issues/28)) ([eb7bba8](https://github.com/supabase-community/postgrest-ex/commit/eb7bba81de8dec310f3fa287e400021f9025fa2e))
+
+
+### Continuous Integration
+
+* add publish workflow ([9f0d987](https://github.com/supabase-community/postgrest-ex/commit/9f0d9878c3bded82978f845e0d2a17e57767a89b))
+
 ## [1.2.0](https://github.com/supabase-community/postgrest-ex/compare/v1.1.0...v1.2.0) (2025-11-20)
 
 
