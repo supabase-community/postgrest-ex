@@ -14,7 +14,7 @@ Add the following dependencies to your `mix.exs` file:
 def deps do
   [
     {:supabase_potion, "~> 0.7"},
-    {:supabase_postgrest, "~> 1.0.0"} # x-release-please-version
+    {:supabase_postgrest, "~> 1.2.1"} # x-release-please-version
   ]
 end
 ```
