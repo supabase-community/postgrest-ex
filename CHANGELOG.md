@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/supabase-community/postgrest-ex/compare/v1.2.1...v1.2.2) (2025-12-10)
+
+
+### Continuous Integration
+
+* we need ex_doc to publish ([11ca30b](https://github.com/supabase-community/postgrest-ex/commit/11ca30b9c41b9b50f49eed7938bef261bc48fc6c))
+
 ## [1.2.1](https://github.com/supabase-community/postgrest-ex/compare/v1.2.0...v1.2.1) (2025-12-10)
 
 
