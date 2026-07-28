@@ -67,7 +67,7 @@ defmodule Supabase.PostgREST.FilterBuilderTest do
 
   test "raises error for invalid operator" do
     assert_raise FunctionClauseError, fn ->
-      process_condition({:invalid_op, "age", 18})
+      apply(Supabase.PostgREST.FilterBuilder, :process_condition, [{:invalid_op, "age", 18}])
     end
   end
 

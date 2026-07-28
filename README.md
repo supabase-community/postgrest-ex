@@ -6,6 +6,10 @@ The `Supabase.PostgREST` module provides a suite of functions to interact with a
 
 Please, refers to the [official Supabase PostgREST](https://supabase.com/docs/guides/api) documentation to have the context on how to apply query and filters on your data, and also configure your project to expose the PostgREST API.
 
+## Compatibility
+
+We support the latest 3 stable Elixir versions.
+
 ## Installation
 
 Add the following dependencies to your `mix.exs` file:
