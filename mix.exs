@@ -7,7 +7,7 @@ defmodule PostgREST.MixProject do
     [
       app: :supabase_postgrest,
       version: "1.2.2",
-      elixir: "~> 1.15",
+      elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),
@@ -33,7 +33,7 @@ defmodule PostgREST.MixProject do
     if System.get_env("SUPABASE_LOCAL") == "1" do
       {:supabase_potion, path: "../supabase-ex"}
     else
-      {:supabase_potion, "~> 0.7"}
+      {:supabase_potion, "~> 1.0.0"}
     end
   end
 

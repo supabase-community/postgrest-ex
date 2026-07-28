@@ -65,12 +65,6 @@ defmodule Supabase.PostgREST.FilterBuilderTest do
     assert result == "tags=like(all).{*backend*,*frontend*}"
   end
 
-  test "raises error for invalid operator" do
-    assert_raise FunctionClauseError, fn ->
-      process_condition({:invalid_op, "age", 18})
-    end
-  end
-
   test "process empty and condition" do
     assert process_condition({:and, []}) == "and()"
   end

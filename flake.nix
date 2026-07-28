@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05-small";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05-small";
     elixir-overlay.url = "github:zoedsoupe/elixir-overlay";
   };
 
@@ -20,12 +20,12 @@
   in {
     devShells = forAllSystems (pkgs: let
       inherit (pkgs) mkShell;
-      inherit (pkgs.beam.interpreters) erlang_27;
+      inherit (pkgs.beam.interpreters) erlang_28;
     in {
       default = mkShell {
         name = "postgrest-ex";
         packages = with pkgs;
-          [elixir-bin."1.18.4" erlang_27 postgresql]
+          [(elixir-with-otp erlang_28)."1.20.2" erlang_28 postgresql]
           ++ lib.optional stdenv.isLinux [inotify-tools];
       };
     });

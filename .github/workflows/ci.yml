@@ -18,20 +18,26 @@ jobs:
     strategy:
       matrix:
         include:
-          - elixir: 1.18
+          - elixir: '1.20.2'
+            otp: 28
+          - elixir: '1.20.2'
             otp: 27
-          - elixir: 1.18
-            otp: 26
-          - elixir: 1.17
+          - elixir: '1.19.5'
+            otp: 28
+          - elixir: '1.19.5'
             otp: 27
-          - elixir: 1.17
+          - elixir: '1.19.5'
             otp: 26
-          - elixir: 1.17
+          - elixir: '1.18.4'
+            otp: 27
+          - elixir: '1.18.4'
+            otp: 26
+          - elixir: '1.18.4'
             otp: 25
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
@@ -44,7 +50,7 @@ jobs:
         id: deps-cache
         with:
           path: deps
-          key: ${{ runner.os }}-mix-${{ env.MIX_ENV }}-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+          key: ${{ runner.os }}-mix-${{ env.MIX_ENV }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
 
       - name: Cache Elixir _build
         uses: actions/cache@v4
@@ -82,20 +88,26 @@ jobs:
     strategy:
       matrix:
         include:
-          - elixir: 1.18
+          - elixir: '1.20.2'
+            otp: 28
+          - elixir: '1.20.2'
             otp: 27
-          - elixir: 1.18
-            otp: 26
-          - elixir: 1.17
+          - elixir: '1.19.5'
+            otp: 28
+          - elixir: '1.19.5'
             otp: 27
-          - elixir: 1.17
+          - elixir: '1.19.5'
             otp: 26
-          - elixir: 1.17
+          - elixir: '1.18.4'
+            otp: 27
+          - elixir: '1.18.4'
+            otp: 26
+          - elixir: '1.18.4'
             otp: 25
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
@@ -108,7 +120,7 @@ jobs:
         id: deps-cache
         with:
           path: deps
-          key: ${{ runner.os }}-mix-${{ env.MIX_ENV }}-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+          key: ${{ runner.os }}-mix-${{ env.MIX_ENV }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
 
       - name: Cache Elixir _build
         uses: actions/cache@v4
@@ -159,20 +171,26 @@ jobs:
     strategy:
       matrix:
         include:
-          - elixir: 1.18
+          - elixir: '1.20.2'
+            otp: 28
+          - elixir: '1.20.2'
             otp: 27
-          - elixir: 1.18
-            otp: 26
-          - elixir: 1.17
+          - elixir: '1.19.5'
+            otp: 28
+          - elixir: '1.19.5'
             otp: 27
-          - elixir: 1.17
+          - elixir: '1.19.5'
             otp: 26
-          - elixir: 1.17
+          - elixir: '1.18.4'
+            otp: 27
+          - elixir: '1.18.4'
+            otp: 26
+          - elixir: '1.18.4'
             otp: 25
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
@@ -185,7 +203,7 @@ jobs:
         id: deps-cache
         with:
           path: deps
-          key: ${{ runner.os }}-mix-${{ env.MIX_ENV }}-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+          key: ${{ runner.os }}-mix-${{ env.MIX_ENV }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
 
       - name: Cache Elixir _build
         uses: actions/cache@v4
