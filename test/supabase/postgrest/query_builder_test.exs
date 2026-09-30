@@ -74,7 +74,7 @@ defmodule Supabase.PostgREST.QueryBuilderTest do
     test "sets default prefer headers", %{request: request} do
       result = QueryBuilder.insert(request, %{})
       assert %Request{headers: headers} = result
-      assert get_header(headers, "prefer") == "return=representation,count=exact"
+      assert get_header(headers, "prefer") == "return=representation,count=exact,missing=default"
     end
 
     test "handles on_conflict option", %{request: request} do
@@ -108,7 +108,17 @@ defmodule Supabase.PostgREST.QueryBuilderTest do
       assert %Request{headers: headers} = result
 
       assert get_header(headers, "prefer") ==
-               "return=headers_only,count=estimated,on_conflict=name,resolution=merge-duplicates"
+               "return=headers_only,count=estimated,on_conflict=name,resolution=merge-duplicates,missing=default"
+    end
+
+    test "sends missing=default unless default_to_null is false", %{request: request} do
+      assert %Request{headers: headers} = QueryBuilder.insert(request, %{})
+      assert get_header(headers, "prefer") =~ "missing=default"
+
+      assert %Request{headers: headers} =
+               QueryBuilder.insert(request, %{}, default_to_null: false)
+
+      refute get_header(headers, "prefer") =~ "missing=default"
     end
 
     test "ignores nil values in prefer header", %{request: request} do
@@ -151,6 +161,23 @@ defmodule Supabase.PostgREST.QueryBuilderTest do
       result = QueryBuilder.upsert(request, %{}, count: :none)
       assert %Request{headers: headers} = result
       assert get_header(headers, "prefer") =~ "count=none"
+    end
+
+    test "sends ignore-duplicates resolution with ignore_duplicates", %{request: request} do
+      result = QueryBuilder.upsert(request, %{}, ignore_duplicates: true)
+      assert %Request{headers: headers} = result
+      assert get_header(headers, "prefer") =~ "resolution=ignore-duplicates"
+      assert get_header(headers, "prefer") =~ "missing=default"
+    end
+
+    test "sends missing=default unless default_to_null is false", %{request: request} do
+      assert %Request{headers: headers} = QueryBuilder.upsert(request, %{})
+      assert get_header(headers, "prefer") =~ "missing=default"
+
+      assert %Request{headers: headers} =
+               QueryBuilder.upsert(request, %{}, default_to_null: false)
+
+      refute get_header(headers, "prefer") =~ "missing=default"
     end
   end
 

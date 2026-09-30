@@ -65,7 +65,12 @@ defmodule Supabase.PostgREST.QueryBuilder do
   ## Parameters
   - `builder`: The `Supabase.Fetcher.Request` to use.
   - `data`: The data to be inserted, typically a map or a list of maps.
-  - `opts`: Options like `:on_conflict`, `:returning`, and `:count`.
+  - `opts`: Options like `:on_conflict`, `:returning`, `:count`, and `:default_to_null`.
+
+  ## Options
+  - `:default_to_null` - when `true` (the default), sends `missing=default` so
+    bulk inserts with missing keys use the column default instead of failing.
+    Set to `false` to make missing keys explicit `NULL`s.
 
   ## Examples
       iex> PostgREST.insert(builder, %{name: "John"}, on_conflict: "name", returning: :minimal)
@@ -80,7 +85,8 @@ defmodule Supabase.PostgREST.QueryBuilder do
     upsert = if on_conflict, do: "resolution=merge-duplicates"
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
-    prefer = ["return=#{returning}", "count=#{count}", on_conflict_header, upsert]
+    missing = if Keyword.get(opts, :default_to_null, true), do: "missing=default"
+    prefer = ["return=#{returning}", "count=#{count}", on_conflict_header, upsert, missing]
     prefer = Enum.join(Enum.reject(prefer, &is_nil/1), ",")
 
     b
@@ -102,7 +108,13 @@ defmodule Supabase.PostgREST.QueryBuilder do
   ## Parameters
   - `builder`: The `Supabase.Fetcher.Request` to use.
   - `data`: The data to upsert, typically a map or a list of maps.
-  - `opts`: Options like `:on_conflict`, `:returning`, and `:count`.
+  - `opts`: Options like `:on_conflict`, `:returning`, `:count`, `:ignore_duplicates`, and `:default_to_null`.
+
+  ## Options
+  - `:ignore_duplicates` - when `true`, conflicting rows are skipped instead of
+    merged (`resolution=ignore-duplicates`). Defaults to `false` (merge).
+  - `:default_to_null` - when `true` (the default), missing keys use the column
+    default (`missing=default`). Implied when `:ignore_duplicates` is set.
 
   ## Examples
       iex> PostgREST.upsert(builder, %{name: "Jane"}, on_conflict: "name", returning: :representation)
@@ -116,12 +128,23 @@ defmodule Supabase.PostgREST.QueryBuilder do
     on_conflict_header = if on_conflict, do: "on_conflict=#{on_conflict}"
     returning = Keyword.get(opts, :returning, :representation)
     count = Keyword.get(opts, :count, :exact)
+    ignore_duplicates = Keyword.get(opts, :ignore_duplicates, false)
+
+    resolution =
+      if ignore_duplicates,
+        do: "resolution=ignore-duplicates",
+        else: "resolution=merge-duplicates"
+
+    missing =
+      if Keyword.get(opts, :default_to_null, true) or ignore_duplicates,
+        do: "missing=default"
 
     prefer_parts = [
-      "resolution=merge-duplicates",
+      resolution,
       "return=#{returning}",
       "count=#{count}",
-      on_conflict_header
+      on_conflict_header,
+      missing
     ]
 
     prefer = Enum.join(Enum.reject(prefer_parts, &is_nil/1), ",")

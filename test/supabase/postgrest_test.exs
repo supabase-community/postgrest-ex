@@ -55,7 +55,15 @@ defmodule Supabase.PostgRESTTest do
       assert result.method == :post
 
       assert get_header(result, "prefer") ==
-               "return=minimal,count=exact,on_conflict=name,resolution=merge-duplicates"
+               "return=minimal,count=exact,on_conflict=name,resolution=merge-duplicates,missing=default"
+    end
+
+    test "omits missing=default when default_to_null is false", %{client: client} do
+      builder = PostgREST.from(client, "users")
+      data = %{name: "John Doe", age: 28}
+
+      result = PostgREST.insert(builder, data, default_to_null: false)
+      assert get_header(result, "prefer") == "return=representation,count=exact"
     end
   end
 
@@ -95,7 +103,16 @@ defmodule Supabase.PostgRESTTest do
       assert result.method == :post
 
       assert get_header(result, "prefer") ==
-               "resolution=merge-duplicates,return=representation,count=exact,on_conflict=name"
+               "resolution=merge-duplicates,return=representation,count=exact,on_conflict=name,missing=default"
+    end
+
+    test "builds an upsert query ignoring duplicates", %{client: client} do
+      builder = PostgREST.from(client, "users")
+      data = %{name: "Jane Doe"}
+
+      result = PostgREST.upsert(builder, data, on_conflict: "name", ignore_duplicates: true)
+      assert get_header(result, "prefer") =~ "resolution=ignore-duplicates"
+      assert get_header(result, "prefer") =~ "missing=default"
     end
   end
 
