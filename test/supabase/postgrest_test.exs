@@ -155,5 +155,28 @@ defmodule Supabase.PostgRESTTest do
       assert %Request{query: [{"status", "in.(active,pending,closed)"}]} =
                PostgREST.within(fb, "status", ["active", "pending", "closed"])
     end
+
+    test "not_in function negates a within filter", %{builder: fb} do
+      assert %Request{query: [{"status", "not.in.(archived,deleted)"}]} =
+               PostgREST.not_in(fb, "status", ["archived", "deleted"])
+    end
+
+    test "is_distinct function filters with IS DISTINCT FROM", %{builder: fb} do
+      assert %Request{query: [{"status", "isdistinct.active"}]} =
+               PostgREST.is_distinct(fb, "status", "active")
+
+      assert %Request{query: [{"name", "isdistinct.null"}]} =
+               PostgREST.is_distinct(fb, "name", nil)
+    end
+
+    test "regex_match function filters with a case-sensitive regex", %{builder: fb} do
+      assert %Request{query: [{"email", "match.@zeetech\\.io$"}]} =
+               PostgREST.regex_match(fb, "email", "@zeetech\\.io$")
+    end
+
+    test "regex_imatch function filters with a case-insensitive regex", %{builder: fb} do
+      assert %Request{query: [{"name", "imatch.^jhon"}]} =
+               PostgREST.regex_imatch(fb, "name", "^jhon")
+    end
   end
 end
