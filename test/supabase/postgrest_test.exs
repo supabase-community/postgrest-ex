@@ -21,6 +21,18 @@ defmodule Supabase.PostgRESTTest do
     end
   end
 
+  describe "execute/2" do
+    test "fails with :url_too_long before dispatching over-long GET URLs", %{client: client} do
+      builder =
+        client
+        |> PostgREST.from("users")
+        |> PostgREST.select("*")
+        |> PostgREST.eq("name", String.duplicate("a", 9_000))
+
+      assert {:error, %Supabase.Error{code: :url_too_long}} = PostgREST.execute(builder)
+    end
+  end
+
   describe "select/3" do
     test "builds a select query with specific columns", %{client: client} do
       builder = PostgREST.from(client, "users")

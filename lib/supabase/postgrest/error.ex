@@ -8,11 +8,12 @@ defmodule Supabase.PostgREST.Error do
   @behaviour Supabase.Error
 
   @impl true
-  def from(%Response{body: body}, %Request{} = ctx) when is_map(body) do
+  def from(%Response{body: body} = resp, %Request{} = ctx) when is_map(body) do
     metadata = Supabase.Error.make_default_http_metadata(ctx)
 
     metadata =
       Map.merge(metadata, %{
+        resp_status: resp.status,
         database_error_hint: body[:hint],
         database_error_code: body[:code],
         database_error_detail: body[:details]

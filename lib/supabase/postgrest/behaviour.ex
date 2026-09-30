@@ -12,7 +12,11 @@ defmodule Supabase.PostgREST.Behaviour do
   @callback schema(Request.t(), schema :: String.t()) :: Request.t()
 
   @callback execute(Request.t()) :: Supabase.result(term)
+  @callback execute(Request.t(), retry: boolean, retry_attempts: pos_integer) ::
+              Supabase.result(term)
   @callback execute_to(Request.t(), module) :: Supabase.result(term)
+  @callback execute_to(Request.t(), module, retry: boolean, retry_attempts: pos_integer) ::
+              Supabase.result(term)
   @callback execute_to_finch_request(Request.t()) :: Finch.Request.t()
 
   @callback rpc(Client.t(), function_name, arguments, options) :: Request.t()
