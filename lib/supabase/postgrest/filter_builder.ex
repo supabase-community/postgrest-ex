@@ -513,6 +513,32 @@ defmodule Supabase.PostgREST.FilterBuilder do
   end
 
   @doc """
+  Match only rows where `column` IS DISTINCT FROM `value`, meaning it treats
+  `NULL` as a comparable value. Two `NULL`s are not distinct, and a `NULL` is
+  distinct from any non-null value.
+
+  ## Parameters
+  - `builder`: The `Supabase.Fetcher.Request` instance.
+  - `column`: The column to filter.
+  - `value`: The value to compare against, must implement the `String.Chars` protocol
+
+  ## Examples
+      iex> PostgREST.is_distinct(builder, "name", nil)
+      iex> PostgREST.is_distinct(builder, "status", "active")
+
+  ## See also
+  - PostgREST isdistinct operator: https://docs.postgrest.org/en/stable/references/api/tables_views.html#operators
+  """
+  @impl true
+  def is_distinct(%Request{} = f, column, nil) when is_binary(column) do
+    Request.with_query(f, %{column => "isdistinct.null"})
+  end
+
+  def is_distinct(%Request{} = f, column, value) when is_binary(column) do
+    Request.with_query(f, %{column => "isdistinct.#{value}"})
+  end
+
+  @doc """
   Filters the query by checking if the column's value is within an array of specified values.
 
   ## Parameters
@@ -535,6 +561,68 @@ defmodule Supabase.PostgREST.FilterBuilder do
       end)
 
     Request.with_query(f, %{column => "in.(#{values})"})
+  end
+
+  @doc """
+  Match only rows where `column` is NOT included in `values`. Shorthand for
+  negating `within/3` (`not.in.(...)`).
+
+  ## Parameters
+  - `builder`: The `Supabase.Fetcher.Request` instance.
+  - `column`: The column to filter.
+  - `values`: A list of rejected values for the column, all elements must implement the `String.Chars` protocol
+
+  ## Examples
+      iex> PostgREST.not_in(builder, "status", ["archived", "deleted"])
+
+  ## See also
+  - Supabase negation filters: https://supabase.com/docs/reference/javascript/using-filters#negation
+  """
+  @impl true
+  def not_in(%Request{} = f, column, values)
+      when is_binary(column) and is_list(values) do
+    values = Enum.map_join(values, ",", &to_string/1)
+    Request.with_query(f, %{column => "not.in.(#{values})"})
+  end
+
+  @doc """
+  Match only rows where `column` matches the regular expression `pattern`
+  case-sensitively (PostgREST `match` operator, `~` in SQL).
+
+  ## Parameters
+  - `builder`: The `Supabase.Fetcher.Request` instance.
+  - `column`: The column to filter.
+  - `pattern`: The regular expression to match against.
+
+  ## Examples
+      iex> PostgREST.regex_match(builder, "email", "@zeetech\\\\.io$")
+
+  ## See also
+  - PostgREST pattern matching operators: https://docs.postgrest.org/en/stable/references/api/tables_views.html#pattern-matching
+  """
+  @impl true
+  def regex_match(%Request{} = f, column, pattern) when is_binary(column) do
+    Request.with_query(f, %{column => "match.#{pattern}"})
+  end
+
+  @doc """
+  Match only rows where `column` matches the regular expression `pattern`
+  case-insensitively (PostgREST `imatch` operator, `~*` in SQL).
+
+  ## Parameters
+  - `builder`: The `Supabase.Fetcher.Request` instance.
+  - `column`: The column to filter.
+  - `pattern`: The regular expression to match against.
+
+  ## Examples
+      iex> PostgREST.regex_imatch(builder, "name", "^jhon")
+
+  ## See also
+  - PostgREST pattern matching operators: https://docs.postgrest.org/en/stable/references/api/tables_views.html#pattern-matching
+  """
+  @impl true
+  def regex_imatch(%Request{} = f, column, pattern) when is_binary(column) do
+    Request.with_query(f, %{column => "imatch.#{pattern}"})
   end
 
   @doc """

@@ -6,14 +6,26 @@ defmodule Supabase.PostgREST.QueryBuilder.Behaviour do
   @type column :: String.t() | atom
   @type agg_opt :: {:as, column}
   @type options :: [count: :exact, returning: boolean | :representation]
-  @type insert_options :: [count: :exact, returning: boolean | :representation, on_conflict: any]
+  @type insert_options :: [
+          count: :exact,
+          returning: boolean | :representation,
+          on_conflict: any,
+          default_to_null: boolean
+        ]
+  @type upsert_options :: [
+          count: :exact,
+          returning: boolean | :representation,
+          on_conflict: any,
+          default_to_null: boolean,
+          ignore_duplicates: boolean
+        ]
 
   @callback select(Request.t(), list(String.t()) | String.t()) :: Request.t()
   @callback select(Request.t(), list(String.t()) | String.t(), options) :: Request.t()
   @callback insert(Request.t(), map) :: Request.t()
   @callback insert(Request.t(), map, insert_options) :: Request.t()
   @callback upsert(Request.t(), map) :: Request.t()
-  @callback upsert(Request.t(), map, insert_options) :: Request.t()
+  @callback upsert(Request.t(), map, upsert_options) :: Request.t()
   @callback delete(Request.t()) :: Request.t()
   @callback delete(Request.t(), options) :: Request.t()
   @callback update(Request.t(), map) :: Request.t()

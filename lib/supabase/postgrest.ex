@@ -22,6 +22,9 @@ defmodule Supabase.PostgREST do
 
   @behaviour Supabase.PostgREST.Behaviour
 
+  @max_url_length 8_000
+  @retry_base_delay_ms 100
+
   @accept_headers %{
     default: "*/*",
     csv: "text/csv",
@@ -126,15 +129,27 @@ defmodule Supabase.PostgREST do
 
   ## Parameters
   - `builder`: The Builder or Builder instance to execute.
+  - `opts`: Options for request execution:
+    - `:retry` - retry transient failures (5xx responses, transport errors) on
+      idempotent `GET`/`HEAD` requests. Defaults to `true`.
+    - `:retry_attempts` - maximum total attempts when retrying. Defaults to `3`.
 
   ## Examples
       iex> PostgREST.execute(builder)
+      iex> PostgREST.execute(builder, retry: false)
 
   ## See also
   - Supabase query execution: https://supabase.com/docs/reference/javascript/performing-queries
   """
   @impl true
-  def execute(%Request{} = b), do: do_execute(b)
+  def execute(%Request{} = b, opts \\ []) do
+    if Keyword.get(opts, :retry, true) and b.method in [:get, :head] do
+      attempts = Kernel.max(Keyword.get(opts, :retry_attempts, 3), 1)
+      request_with_retry(b, attempts, @retry_base_delay_ms)
+    else
+      do_execute(b)
+    end
+  end
 
   @doc """
   Executes the query and maps the resulting data to a specified schema struct, useful for casting the results to Elixir structs.
@@ -142,6 +157,7 @@ defmodule Supabase.PostgREST do
   ## Parameters
   - `builder`: The Builder or Builder instance to execute.
   - `schema`: The Elixir module representing the schema to which the results should be cast.
+  - `opts`: Same execution options as `execute/2`.
 
   ## Examples
       iex> PostgREST.execute_to(builder, User)
@@ -150,11 +166,12 @@ defmodule Supabase.PostgREST do
   - Supabase query execution and schema casting: https://supabase.com/docs/reference/javascript/performing-queries
   """
   @impl true
-  def execute_to(%Request{} = b, schema) when is_atom(schema) do
+  def execute_to(%Request{} = b, schema, opts \\ []) when is_atom(schema) do
     alias Supabase.PostgREST.SchemaDecoder
 
-    Request.with_body_decoder(b, SchemaDecoder, schema: schema)
-    |> do_execute()
+    b
+    |> Request.with_body_decoder(SchemaDecoder, schema: schema)
+    |> execute(opts)
   end
 
   @doc """
@@ -178,17 +195,65 @@ defmodule Supabase.PostgREST do
   end
 
   defp do_execute(%Request{client: client} = b) do
-    schema = client.db.schema
+    with :ok <- check_url_length(b) do
+      schema = client.db.schema
 
-    schema_header =
-      if b.method in [:get, :head],
-        do: %{"accept-profile" => schema},
-        else: %{"content-profile" => schema}
+      schema_header =
+        if b.method in [:get, :head],
+          do: %{"accept-profile" => schema},
+          else: %{"content-profile" => schema}
 
-    b
-    |> Request.with_error_parser(Error)
-    |> Request.with_headers(schema_header)
-    |> Fetcher.request()
+      b
+      |> Request.with_error_parser(Error)
+      |> Request.with_headers(schema_header)
+      |> Fetcher.request()
+    end
+  end
+
+  defp check_url_length(%Request{method: method} = b) when method in [:get, :head] do
+    url =
+      b.url
+      |> to_string()
+      |> URI.parse()
+      |> URI.append_query(URI.encode_query(b.query))
+      |> URI.to_string()
+
+    if byte_size(url) > @max_url_length do
+      {:error,
+       Supabase.Error.new(
+         code: :url_too_long,
+         message:
+           "request URL exceeds the #{@max_url_length} byte limit (#{byte_size(url)} bytes)",
+         service: :database
+       )}
+    else
+      :ok
+    end
+  end
+
+  defp check_url_length(%Request{}), do: :ok
+
+  defp request_with_retry(%Request{} = b, attempts_left, delay_ms) do
+    case do_execute(b) do
+      {:error, %Supabase.Error{} = error} = result when attempts_left > 1 ->
+        if retryable?(error) do
+          Process.sleep(delay_ms)
+          request_with_retry(b, attempts_left - 1, delay_ms * 2)
+        else
+          result
+        end
+
+      other ->
+        other
+    end
+  end
+
+  defp retryable?(%Supabase.Error{} = error) do
+    case get_in(error.metadata, [:resp_status]) do
+      # transport-level failure: no HTTP response at all
+      nil -> true
+      status -> status >= 500
+    end
   end
 
   @doc """

@@ -21,6 +21,18 @@ defmodule Supabase.PostgRESTTest do
     end
   end
 
+  describe "execute/2" do
+    test "fails with :url_too_long before dispatching over-long GET URLs", %{client: client} do
+      builder =
+        client
+        |> PostgREST.from("users")
+        |> PostgREST.select("*")
+        |> PostgREST.eq("name", String.duplicate("a", 9_000))
+
+      assert {:error, %Supabase.Error{code: :url_too_long}} = PostgREST.execute(builder)
+    end
+  end
+
   describe "select/3" do
     test "builds a select query with specific columns", %{client: client} do
       builder = PostgREST.from(client, "users")
@@ -55,7 +67,15 @@ defmodule Supabase.PostgRESTTest do
       assert result.method == :post
 
       assert get_header(result, "prefer") ==
-               "return=minimal,count=exact,on_conflict=name,resolution=merge-duplicates"
+               "return=minimal,count=exact,on_conflict=name,resolution=merge-duplicates,missing=default"
+    end
+
+    test "omits missing=default when default_to_null is false", %{client: client} do
+      builder = PostgREST.from(client, "users")
+      data = %{name: "John Doe", age: 28}
+
+      result = PostgREST.insert(builder, data, default_to_null: false)
+      assert get_header(result, "prefer") == "return=representation,count=exact"
     end
   end
 
@@ -95,7 +115,16 @@ defmodule Supabase.PostgRESTTest do
       assert result.method == :post
 
       assert get_header(result, "prefer") ==
-               "resolution=merge-duplicates,return=representation,count=exact,on_conflict=name"
+               "resolution=merge-duplicates,return=representation,count=exact,on_conflict=name,missing=default"
+    end
+
+    test "builds an upsert query ignoring duplicates", %{client: client} do
+      builder = PostgREST.from(client, "users")
+      data = %{name: "Jane Doe"}
+
+      result = PostgREST.upsert(builder, data, on_conflict: "name", ignore_duplicates: true)
+      assert get_header(result, "prefer") =~ "resolution=ignore-duplicates"
+      assert get_header(result, "prefer") =~ "missing=default"
     end
   end
 
@@ -137,6 +166,29 @@ defmodule Supabase.PostgRESTTest do
     } do
       assert %Request{query: [{"status", "in.(active,pending,closed)"}]} =
                PostgREST.within(fb, "status", ["active", "pending", "closed"])
+    end
+
+    test "not_in function negates a within filter", %{builder: fb} do
+      assert %Request{query: [{"status", "not.in.(archived,deleted)"}]} =
+               PostgREST.not_in(fb, "status", ["archived", "deleted"])
+    end
+
+    test "is_distinct function filters with IS DISTINCT FROM", %{builder: fb} do
+      assert %Request{query: [{"status", "isdistinct.active"}]} =
+               PostgREST.is_distinct(fb, "status", "active")
+
+      assert %Request{query: [{"name", "isdistinct.null"}]} =
+               PostgREST.is_distinct(fb, "name", nil)
+    end
+
+    test "regex_match function filters with a case-sensitive regex", %{builder: fb} do
+      assert %Request{query: [{"email", "match.@zeetech\\.io$"}]} =
+               PostgREST.regex_match(fb, "email", "@zeetech\\.io$")
+    end
+
+    test "regex_imatch function filters with a case-insensitive regex", %{builder: fb} do
+      assert %Request{query: [{"name", "imatch.^jhon"}]} =
+               PostgREST.regex_imatch(fb, "name", "^jhon")
     end
   end
 end

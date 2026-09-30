@@ -233,6 +233,52 @@ defmodule Supabase.PostgREST.TransformBuilder do
   end
 
   @doc """
+  Strip `null` values from JSON objects in the response, via the
+  `nulls=stripped` media-type parameter. Applies to the current `accept`
+  media type, defaulting to `application/vnd.pgrst.array+json`.
+
+  ## Examples
+      iex> PostgREST.strip_nulls(builder)
+      %Supabase.Fetcher.Request{headers: %{"accept" => "application/vnd.pgrst.array+json;nulls=stripped"}}
+
+  ## See also
+  - PostgREST nulls stripping: https://docs.postgrest.org/en/stable/references/api/resource_representation.html#nulls-stripping
+  """
+  @impl true
+  def strip_nulls(%Request{} = b) do
+    base =
+      case Helpers.get_header(b.headers, "accept") do
+        nil -> "application/vnd.pgrst.array+json"
+        "*/*" -> "application/vnd.pgrst.array+json"
+        accept -> accept
+      end
+
+    accept =
+      if String.contains?(base, "nulls=stripped"),
+        do: base,
+        else: "#{base};nulls=stripped"
+
+    Request.with_headers(b, %{"accept" => accept})
+  end
+
+  @doc """
+  Set the maximum number of affected rows for an `update` or `delete` query.
+  If more than `value` rows would change, the query fails instead of
+  modifying them (PostgREST 13+).
+
+  ## Examples
+      iex> PostgREST.max_affected(builder, 10)
+      %Supabase.Fetcher.Request{headers: %{"prefer" => "max-affected=10"}}
+
+  ## See also
+  - PostgREST affected rows limit: https://docs.postgrest.org/en/stable/references/api/preferences.html#max-affected
+  """
+  @impl true
+  def max_affected(%Request{} = b, value) when is_integer(value) and value > 0 do
+    Request.merge_req_header(b, "prefer", "max-affected=#{value}", with: ",")
+  end
+
+  @doc """
   Perform a SELECT on the query result.
    
   By default, `.insert()`, `.update()`, `.upsert()`, and `.delete()` do not
