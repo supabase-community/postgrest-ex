@@ -255,6 +255,7 @@ defmodule Supabase.PostgREST.TransformBuilderTest do
   describe "strip_nulls/1" do
     test "defaults to the pgrst array media type with nulls=stripped", %{request: request} do
       result = TransformBuilder.strip_nulls(request)
+
       assert get_header(result.headers, "accept") ==
                "application/vnd.pgrst.array+json;nulls=stripped"
     end

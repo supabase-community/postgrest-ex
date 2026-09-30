@@ -222,7 +222,8 @@ defmodule Supabase.PostgREST do
       {:error,
        Supabase.Error.new(
          code: :url_too_long,
-         message: "request URL exceeds the #{@max_url_length} byte limit (#{byte_size(url)} bytes)",
+         message:
+           "request URL exceeds the #{@max_url_length} byte limit (#{byte_size(url)} bytes)",
          service: :database
        )}
     else
