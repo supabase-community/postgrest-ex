@@ -238,6 +238,20 @@ defmodule Supabase.PostgREST.TransformBuilderTest do
     end
   end
 
+  describe "max_affected/2" do
+    test "adds max-affected to prefer header", %{request: request} do
+      result = TransformBuilder.max_affected(request, 10)
+      assert %Request{} = result
+      assert get_header(result.headers, "prefer") == "max-affected=10"
+    end
+
+    test "merges with existing prefer header", %{request: request} do
+      request = Request.with_headers(request, %{"prefer" => "return=minimal"})
+      result = TransformBuilder.max_affected(request, 5)
+      assert get_header(result.headers, "prefer") == "return=minimal,max-affected=5"
+    end
+  end
+
   describe "returning/2" do
     test "adds select=* and return=representation when no columns specified", %{request: request} do
       result = TransformBuilder.returning(request)

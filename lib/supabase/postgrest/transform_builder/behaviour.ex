@@ -20,6 +20,7 @@ defmodule Supabase.PostgREST.TransformBuilder.Behaviour do
   @callback range(Request.t(), from :: integer, to :: integer, foreign_table: String.t()) ::
               Request.t()
   @callback rollback(Request.t()) :: Request.t()
+  @callback max_affected(Request.t(), limit :: pos_integer) :: Request.t()
   @callback returning(Request.t()) :: Request.t()
   @callback returning(Request.t(), list(String.t()) | String.t()) :: Request.t()
   @callback csv(Request.t()) :: Request.t()

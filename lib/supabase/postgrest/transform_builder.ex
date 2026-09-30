@@ -233,6 +233,23 @@ defmodule Supabase.PostgREST.TransformBuilder do
   end
 
   @doc """
+  Set the maximum number of affected rows for an `update` or `delete` query.
+  If more than `value` rows would change, the query fails instead of
+  modifying them (PostgREST 13+).
+
+  ## Examples
+      iex> PostgREST.max_affected(builder, 10)
+      %Supabase.Fetcher.Request{headers: %{"prefer" => "max-affected=10"}}
+
+  ## See also
+  - PostgREST affected rows limit: https://docs.postgrest.org/en/stable/references/api/preferences.html#max-affected
+  """
+  @impl true
+  def max_affected(%Request{} = b, value) when is_integer(value) and value > 0 do
+    Request.merge_req_header(b, "prefer", "max-affected=#{value}", with: ",")
+  end
+
+  @doc """
   Perform a SELECT on the query result.
    
   By default, `.insert()`, `.update()`, `.upsert()`, and `.delete()` do not
