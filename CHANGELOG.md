@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/supabase-community/postgrest-ex/compare/v1.2.2...v1.3.0) (2026-09-30)
+
+
+### Features
+
+* postgrest-js feature parity ([#32](https://github.com/supabase-community/postgrest-ex/issues/32)) ([733de1c](https://github.com/supabase-community/postgrest-ex/commit/733de1cd3b0406a7c6fbdc8f4e7e0751bc40c566))
+
 ## [1.2.2](https://github.com/supabase-community/postgrest-ex/compare/v1.2.1...v1.2.2) (2025-12-10)
 
 
