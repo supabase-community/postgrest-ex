@@ -252,6 +252,29 @@ defmodule Supabase.PostgREST.TransformBuilderTest do
     end
   end
 
+  describe "strip_nulls/1" do
+    test "defaults to the pgrst array media type with nulls=stripped", %{request: request} do
+      result = TransformBuilder.strip_nulls(request)
+      assert get_header(result.headers, "accept") ==
+               "application/vnd.pgrst.array+json;nulls=stripped"
+    end
+
+    test "appends nulls=stripped to an existing accept media type", %{request: request} do
+      request = Request.with_headers(request, %{"accept" => "application/vnd.pgrst.object+json"})
+      result = TransformBuilder.strip_nulls(request)
+
+      assert get_header(result.headers, "accept") ==
+               "application/vnd.pgrst.object+json;nulls=stripped"
+    end
+
+    test "is idempotent", %{request: request} do
+      result = request |> TransformBuilder.strip_nulls() |> TransformBuilder.strip_nulls()
+
+      assert get_header(result.headers, "accept") ==
+               "application/vnd.pgrst.array+json;nulls=stripped"
+    end
+  end
+
   describe "returning/2" do
     test "adds select=* and return=representation when no columns specified", %{request: request} do
       result = TransformBuilder.returning(request)

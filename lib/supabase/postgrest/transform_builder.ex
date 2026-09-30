@@ -233,6 +233,35 @@ defmodule Supabase.PostgREST.TransformBuilder do
   end
 
   @doc """
+  Strip `null` values from JSON objects in the response, via the
+  `nulls=stripped` media-type parameter. Applies to the current `accept`
+  media type, defaulting to `application/vnd.pgrst.array+json`.
+
+  ## Examples
+      iex> PostgREST.strip_nulls(builder)
+      %Supabase.Fetcher.Request{headers: %{"accept" => "application/vnd.pgrst.array+json;nulls=stripped"}}
+
+  ## See also
+  - PostgREST nulls stripping: https://docs.postgrest.org/en/stable/references/api/resource_representation.html#nulls-stripping
+  """
+  @impl true
+  def strip_nulls(%Request{} = b) do
+    base =
+      case Helpers.get_header(b.headers, "accept") do
+        nil -> "application/vnd.pgrst.array+json"
+        "*/*" -> "application/vnd.pgrst.array+json"
+        accept -> accept
+      end
+
+    accept =
+      if String.contains?(base, "nulls=stripped"),
+        do: base,
+        else: "#{base};nulls=stripped"
+
+    Request.with_headers(b, %{"accept" => accept})
+  end
+
+  @doc """
   Set the maximum number of affected rows for an `update` or `delete` query.
   If more than `value` rows would change, the query fails instead of
   modifying them (PostgREST 13+).

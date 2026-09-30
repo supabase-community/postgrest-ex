@@ -21,6 +21,7 @@ defmodule Supabase.PostgREST.TransformBuilder.Behaviour do
               Request.t()
   @callback rollback(Request.t()) :: Request.t()
   @callback max_affected(Request.t(), limit :: pos_integer) :: Request.t()
+  @callback strip_nulls(Request.t()) :: Request.t()
   @callback returning(Request.t()) :: Request.t()
   @callback returning(Request.t(), list(String.t()) | String.t()) :: Request.t()
   @callback csv(Request.t()) :: Request.t()
