@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/supabase-community/postgrest-ex/compare/v1.3.0...v1.3.1) (2026-11-02)
+
+
+### Miscellaneous Chores
+
+* **nix:** migrate dev shell to beam-overlay ([ce4fa11](https://github.com/supabase-community/postgrest-ex/commit/ce4fa118a7c315fca340794555ee3a807e62c165))
+
 ## [1.3.0](https://github.com/supabase-community/postgrest-ex/compare/v1.2.2...v1.3.0) (2026-09-30)
 
 
